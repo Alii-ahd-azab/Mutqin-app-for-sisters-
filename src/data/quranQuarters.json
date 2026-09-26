@@ -1,0 +1,2402 @@
+[
+  {
+    "quarter": 1,
+    "juz": 1,
+    "hizb": 1,
+    "quarterInHizb": 1,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 1,
+    "ayahText": "الم ۚ ذَٰلِكَ ٱلْكِتَٰبُ لَا رَيْبَ ۛ فِيهِ"
+  },
+  {
+    "quarter": 2,
+    "juz": 1,
+    "hizb": 1,
+    "quarterInHizb": 2,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 26,
+    "ayahText": "۞ إِنَّ ٱللَّهَ لَا يَسْتَحْىِۦٓ أَن يَضْرِبَ مَثَلًۭا"
+  },
+  {
+    "quarter": 3,
+    "juz": 1,
+    "hizb": 1,
+    "quarterInHizb": 3,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 44,
+    "ayahText": "۞ أَتَأْمُرُونَ ٱلنَّاسَ بِٱلْبِرِّ وَتَنسَوْنَ أَنفُسَكُمْ وَأَنتُمْ تَتْلُونَ"
+  },
+  {
+    "quarter": 4,
+    "juz": 1,
+    "hizb": 1,
+    "quarterInHizb": 4,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 60,
+    "ayahText": "۞ وَإِذِ ٱسْتَسْقَىٰ مُوسَىٰ لِقَوْمِهِۦ فَقُلْنَا ٱضْرِب بِّعَصَاكَ"
+  },
+  {
+    "quarter": 5,
+    "juz": 1,
+    "hizb": 2,
+    "quarterInHizb": 1,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 75,
+    "ayahText": "۞ أَفَتَطْمَعُونَ أَن يُؤْمِنُوا۟ لَكُمْ وَقَدْ كَانَ فَرِيقٌۭ"
+  },
+  {
+    "quarter": 6,
+    "juz": 1,
+    "hizb": 2,
+    "quarterInHizb": 2,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 92,
+    "ayahText": "۞ وَلَقَدْ جَآءَكُم مُّوسَىٰ بِٱلْبَيِّنَٰتِ ثُمَّ ٱتَّخَذْتُمُ ٱلْعِجْلَ"
+  },
+  {
+    "quarter": 7,
+    "juz": 1,
+    "hizb": 2,
+    "quarterInHizb": 3,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 106,
+    "ayahText": "۞ مَا نَنسَخْ مِنْ ءَايَةٍ أَوْ نُنسِهَا نَأْتِ"
+  },
+  {
+    "quarter": 8,
+    "juz": 1,
+    "hizb": 2,
+    "quarterInHizb": 4,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 124,
+    "ayahText": "۞ وَإِذِ ٱبْتَلَىٰٓ إِبْرَٰهِۦمَ رَبُّهُۥ بِكَلِمَٰتٍۢ فَأَتَمَّهُنَّ ۖ"
+  },
+  {
+    "quarter": 9,
+    "juz": 2,
+    "hizb": 3,
+    "quarterInHizb": 1,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 142,
+    "ayahText": "۞ سَيَقُولُ ٱلسُّفَهَآءُ مِنَ ٱلنَّاسِ مَا وَلَّىٰهُمْ عَن"
+  },
+  {
+    "quarter": 10,
+    "juz": 2,
+    "hizb": 3,
+    "quarterInHizb": 2,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 158,
+    "ayahText": "۞ إِنَّ ٱلصَّفَا وَٱلْمَرْوَةَ مِن شَعَآئِرِ ٱللَّهِ ۖ"
+  },
+  {
+    "quarter": 11,
+    "juz": 2,
+    "hizb": 3,
+    "quarterInHizb": 3,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 177,
+    "ayahText": "۞ لَّيْسَ ٱلْبِرَّ أَن تُوَلُّوا۟ وُجُوهَكُمْ قِبَلَ ٱلْمَشْرِقِ"
+  },
+  {
+    "quarter": 12,
+    "juz": 2,
+    "hizb": 3,
+    "quarterInHizb": 4,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 189,
+    "ayahText": "۞ يَسْـَٔلُونَكَ عَنِ ٱلْأَهِلَّةِ ۖ قُلْ هِىَ مَوَٰقِيتُ"
+  },
+  {
+    "quarter": 13,
+    "juz": 2,
+    "hizb": 4,
+    "quarterInHizb": 1,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 203,
+    "ayahText": "۞ وَٱذْكُرُوا۟ ٱللَّهَ فِىٓ أَيَّامٍۢ مَّعْدُودَٰتٍۢ ۚ فَمَن"
+  },
+  {
+    "quarter": 14,
+    "juz": 2,
+    "hizb": 4,
+    "quarterInHizb": 2,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 219,
+    "ayahText": "۞ يَسْـَٔلُونَكَ عَنِ ٱلْخَمْرِ وَٱلْمَيْسِرِ ۖ قُلْ فِيهِمَآ"
+  },
+  {
+    "quarter": 15,
+    "juz": 2,
+    "hizb": 4,
+    "quarterInHizb": 3,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 233,
+    "ayahText": "۞ وَٱلْوَٰلِدَٰتُ يُرْضِعْنَ أَوْلَٰدَهُنَّ حَوْلَيْنِ كَامِلَيْنِ ۖ لِمَنْ"
+  },
+  {
+    "quarter": 16,
+    "juz": 2,
+    "hizb": 4,
+    "quarterInHizb": 4,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 243,
+    "ayahText": "۞ أَلَمْ تَرَ إِلَى ٱلَّذِينَ خَرَجُوا۟ مِن دِيَٰرِهِمْ"
+  },
+  {
+    "quarter": 17,
+    "juz": 3,
+    "hizb": 5,
+    "quarterInHizb": 1,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 253,
+    "ayahText": "۞ تِلْكَ ٱلرُّسُلُ فَضَّلْنَا بَعْضَهُمْ عَلَىٰ بَعْضٍۢ ۘ"
+  },
+  {
+    "quarter": 18,
+    "juz": 3,
+    "hizb": 5,
+    "quarterInHizb": 2,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 263,
+    "ayahText": "۞ قَوْلٌۭ مَّعْرُوفٌۭ وَمَغْفِرَةٌ خَيْرٌۭ مِّن صَدَقَةٍۢ يَتْبَعُهَآ"
+  },
+  {
+    "quarter": 19,
+    "juz": 3,
+    "hizb": 5,
+    "quarterInHizb": 3,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 272,
+    "ayahText": "۞ لَّيْسَ عَلَيْكَ هُدَىٰهُمْ وَلَٰكِنَّ ٱللَّهَ يَهْدِى مَن"
+  },
+  {
+    "quarter": 20,
+    "juz": 3,
+    "hizb": 5,
+    "quarterInHizb": 4,
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "ayahNumber": 283,
+    "ayahText": "۞ وَإِن كُنتُمْ عَلَىٰ سَفَرٍۢ وَلَمْ تَجِدُوا۟ كَاتِبًۭا"
+  },
+  {
+    "quarter": 21,
+    "juz": 3,
+    "hizb": 6,
+    "quarterInHizb": 1,
+    "surahNumber": 3,
+    "surahName": "آل عمران",
+    "ayahNumber": 15,
+    "ayahText": "۞ قُلْ أَؤُنَبِّئُكُم بِخَيْرٍۢ مِّن ذَٰلِكُمْ ۚ لِلَّذِينَ"
+  },
+  {
+    "quarter": 22,
+    "juz": 3,
+    "hizb": 6,
+    "quarterInHizb": 2,
+    "surahNumber": 3,
+    "surahName": "آل عمران",
+    "ayahNumber": 33,
+    "ayahText": "۞ إِنَّ ٱللَّهَ ٱصْطَفَىٰٓ ءَادَمَ وَنُوحًۭا وَءَالَ إِبْرَٰهِيمَ"
+  },
+  {
+    "quarter": 23,
+    "juz": 3,
+    "hizb": 6,
+    "quarterInHizb": 3,
+    "surahNumber": 3,
+    "surahName": "آل عمران",
+    "ayahNumber": 52,
+    "ayahText": "۞ فَلَمَّآ أَحَسَّ عِيسَىٰ مِنْهُمُ ٱلْكُفْرَ قَالَ مَنْ"
+  },
+  {
+    "quarter": 24,
+    "juz": 3,
+    "hizb": 6,
+    "quarterInHizb": 4,
+    "surahNumber": 3,
+    "surahName": "آل عمران",
+    "ayahNumber": 75,
+    "ayahText": "۞ وَمِنْ أَهْلِ ٱلْكِتَٰبِ مَنْ إِن تَأْمَنْهُ بِقِنطَارٍۢ"
+  },
+  {
+    "quarter": 25,
+    "juz": 4,
+    "hizb": 7,
+    "quarterInHizb": 1,
+    "surahNumber": 3,
+    "surahName": "آل عمران",
+    "ayahNumber": 93,
+    "ayahText": "۞ كُلُّ ٱلطَّعَامِ كَانَ حِلًّۭا لِّبَنِىٓ إِسْرَٰٓءِيلَ إِلَّا"
+  },
+  {
+    "quarter": 26,
+    "juz": 4,
+    "hizb": 7,
+    "quarterInHizb": 2,
+    "surahNumber": 3,
+    "surahName": "آل عمران",
+    "ayahNumber": 113,
+    "ayahText": "۞ لَيْسُوا۟ سَوَآءًۭ ۗ مِّنْ أَهْلِ ٱلْكِتَٰبِ أُمَّةٌۭ"
+  },
+  {
+    "quarter": 27,
+    "juz": 4,
+    "hizb": 7,
+    "quarterInHizb": 3,
+    "surahNumber": 3,
+    "surahName": "آل عمران",
+    "ayahNumber": 133,
+    "ayahText": "۞ وَسَارِعُوٓا۟ إِلَىٰ مَغْفِرَةٍۢ مِّن رَّبِّكُمْ وَجَنَّةٍ عَرْضُهَا"
+  },
+  {
+    "quarter": 28,
+    "juz": 4,
+    "hizb": 7,
+    "quarterInHizb": 4,
+    "surahNumber": 3,
+    "surahName": "آل عمران",
+    "ayahNumber": 153,
+    "ayahText": "۞ إِذْ تُصْعِدُونَ وَلَا تَلْوُۥنَ عَلَىٰٓ أَحَدٍۢ وَٱلرَّسُولُ"
+  },
+  {
+    "quarter": 29,
+    "juz": 4,
+    "hizb": 8,
+    "quarterInHizb": 1,
+    "surahNumber": 3,
+    "surahName": "آل عمران",
+    "ayahNumber": 171,
+    "ayahText": "۞ يَسْتَبْشِرُونَ بِنِعْمَةٍۢ مِّنَ ٱللَّهِ وَفَضْلٍۢ وَأَنَّ ٱللَّهَ"
+  },
+  {
+    "quarter": 30,
+    "juz": 4,
+    "hizb": 8,
+    "quarterInHizb": 2,
+    "surahNumber": 3,
+    "surahName": "آل عمران",
+    "ayahNumber": 186,
+    "ayahText": "۞ لَتُبْلَوُنَّ فِىٓ أَمْوَٰلِكُمْ وَأَنفُسِكُمْ وَلَتَسْمَعُنَّ مِنَ ٱلَّذِينَ"
+  },
+  {
+    "quarter": 31,
+    "juz": 4,
+    "hizb": 8,
+    "quarterInHizb": 3,
+    "surahNumber": 4,
+    "surahName": "النساء",
+    "ayahNumber": 1,
+    "ayahText": "يَٰٓأَيُّهَا ٱلنَّاسُ ٱتَّقُوا۟ رَبَّكُمُ ٱلَّذِى خَلَقَكُم مِّن نَّفْسٍۢ"
+  },
+  {
+    "quarter": 32,
+    "juz": 4,
+    "hizb": 8,
+    "quarterInHizb": 4,
+    "surahNumber": 4,
+    "surahName": "النساء",
+    "ayahNumber": 12,
+    "ayahText": "۞ وَلَكُمْ نِصْفُ مَا تَرَكَ أَزْوَٰجُكُمْ إِن لَّمْ"
+  },
+  {
+    "quarter": 33,
+    "juz": 5,
+    "hizb": 9,
+    "quarterInHizb": 1,
+    "surahNumber": 4,
+    "surahName": "النساء",
+    "ayahNumber": 24,
+    "ayahText": "۞ وَٱلْمُحْصَنَٰتُ مِنَ ٱلنِّسَآءِ إِلَّا مَا مَلَكَتْ أَيْمَٰنُكُمْ"
+  },
+  {
+    "quarter": 34,
+    "juz": 5,
+    "hizb": 9,
+    "quarterInHizb": 2,
+    "surahNumber": 4,
+    "surahName": "النساء",
+    "ayahNumber": 36,
+    "ayahText": "۞ وَٱعْبُدُوا۟ ٱللَّهَ وَلَا تُشْرِكُوا۟ بِهِۦ شَيْـًۭٔا ۖ"
+  },
+  {
+    "quarter": 35,
+    "juz": 5,
+    "hizb": 9,
+    "quarterInHizb": 3,
+    "surahNumber": 4,
+    "surahName": "النساء",
+    "ayahNumber": 58,
+    "ayahText": "۞ إِنَّ ٱللَّهَ يَأْمُرُكُمْ أَن تُؤَدُّوا۟ ٱلْأَمَٰنَٰتِ إِلَىٰٓ"
+  },
+  {
+    "quarter": 36,
+    "juz": 5,
+    "hizb": 9,
+    "quarterInHizb": 4,
+    "surahNumber": 4,
+    "surahName": "النساء",
+    "ayahNumber": 74,
+    "ayahText": "۞ فَلْيُقَٰتِلْ فِى سَبِيلِ ٱللَّهِ ٱلَّذِينَ يَشْرُونَ ٱلْحَيَوٰةَ"
+  },
+  {
+    "quarter": 37,
+    "juz": 5,
+    "hizb": 10,
+    "quarterInHizb": 1,
+    "surahNumber": 4,
+    "surahName": "النساء",
+    "ayahNumber": 88,
+    "ayahText": "۞ فَمَا لَكُمْ فِى ٱلْمُنَٰفِقِينَ فِئَتَيْنِ وَٱللَّهُ أَرْكَسَهُم"
+  },
+  {
+    "quarter": 38,
+    "juz": 5,
+    "hizb": 10,
+    "quarterInHizb": 2,
+    "surahNumber": 4,
+    "surahName": "النساء",
+    "ayahNumber": 100,
+    "ayahText": "۞ وَمَن يُهَاجِرْ فِى سَبِيلِ ٱللَّهِ يَجِدْ فِى"
+  },
+  {
+    "quarter": 39,
+    "juz": 5,
+    "hizb": 10,
+    "quarterInHizb": 3,
+    "surahNumber": 4,
+    "surahName": "النساء",
+    "ayahNumber": 114,
+    "ayahText": "۞ لَّا خَيْرَ فِى كَثِيرٍۢ مِّن نَّجْوَىٰهُمْ إِلَّا"
+  },
+  {
+    "quarter": 40,
+    "juz": 5,
+    "hizb": 10,
+    "quarterInHizb": 4,
+    "surahNumber": 4,
+    "surahName": "النساء",
+    "ayahNumber": 135,
+    "ayahText": "۞ يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوا۟ كُونُوا۟ قَوَّٰمِينَ بِٱلْقِسْطِ شُهَدَآءَ"
+  },
+  {
+    "quarter": 41,
+    "juz": 6,
+    "hizb": 11,
+    "quarterInHizb": 1,
+    "surahNumber": 4,
+    "surahName": "النساء",
+    "ayahNumber": 148,
+    "ayahText": "۞ لَّا يُحِبُّ ٱللَّهُ ٱلْجَهْرَ بِٱلسُّوٓءِ مِنَ ٱلْقَوْلِ"
+  },
+  {
+    "quarter": 42,
+    "juz": 6,
+    "hizb": 11,
+    "quarterInHizb": 2,
+    "surahNumber": 4,
+    "surahName": "النساء",
+    "ayahNumber": 163,
+    "ayahText": "۞ إِنَّآ أَوْحَيْنَآ إِلَيْكَ كَمَآ أَوْحَيْنَآ إِلَىٰ نُوحٍۢ"
+  },
+  {
+    "quarter": 43,
+    "juz": 6,
+    "hizb": 11,
+    "quarterInHizb": 3,
+    "surahNumber": 5,
+    "surahName": "المائدة",
+    "ayahNumber": 1,
+    "ayahText": "يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوٓا۟ أَوْفُوا۟ بِٱلْعُقُودِ ۚ أُحِلَّتْ لَكُم"
+  },
+  {
+    "quarter": 44,
+    "juz": 6,
+    "hizb": 11,
+    "quarterInHizb": 4,
+    "surahNumber": 5,
+    "surahName": "المائدة",
+    "ayahNumber": 12,
+    "ayahText": "۞ وَلَقَدْ أَخَذَ ٱللَّهُ مِيثَٰقَ بَنِىٓ إِسْرَٰٓءِيلَ وَبَعَثْنَا"
+  },
+  {
+    "quarter": 45,
+    "juz": 6,
+    "hizb": 12,
+    "quarterInHizb": 1,
+    "surahNumber": 5,
+    "surahName": "المائدة",
+    "ayahNumber": 27,
+    "ayahText": "۞ وَٱتْلُ عَلَيْهِمْ نَبَأَ ٱبْنَىْ ءَادَمَ بِٱلْحَقِّ إِذْ"
+  },
+  {
+    "quarter": 46,
+    "juz": 6,
+    "hizb": 12,
+    "quarterInHizb": 2,
+    "surahNumber": 5,
+    "surahName": "المائدة",
+    "ayahNumber": 41,
+    "ayahText": "۞ يَٰٓأَيُّهَا ٱلرَّسُولُ لَا يَحْزُنكَ ٱلَّذِينَ يُسَٰرِعُونَ فِى"
+  },
+  {
+    "quarter": 47,
+    "juz": 6,
+    "hizb": 12,
+    "quarterInHizb": 3,
+    "surahNumber": 5,
+    "surahName": "المائدة",
+    "ayahNumber": 51,
+    "ayahText": "۞ يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوا۟ لَا تَتَّخِذُوا۟ ٱلْيَهُودَ وَٱلنَّصَٰرَىٰٓ"
+  },
+  {
+    "quarter": 48,
+    "juz": 6,
+    "hizb": 12,
+    "quarterInHizb": 4,
+    "surahNumber": 5,
+    "surahName": "المائدة",
+    "ayahNumber": 67,
+    "ayahText": "۞ يَٰٓأَيُّهَا ٱلرَّسُولُ بَلِّغْ مَآ أُنزِلَ إِلَيْكَ مِن"
+  },
+  {
+    "quarter": 49,
+    "juz": 7,
+    "hizb": 13,
+    "quarterInHizb": 1,
+    "surahNumber": 5,
+    "surahName": "المائدة",
+    "ayahNumber": 82,
+    "ayahText": "۞ لَتَجِدَنَّ أَشَدَّ ٱلنَّاسِ عَدَٰوَةًۭ لِّلَّذِينَ ءَامَنُوا۟ ٱلْيَهُودَ"
+  },
+  {
+    "quarter": 50,
+    "juz": 7,
+    "hizb": 13,
+    "quarterInHizb": 2,
+    "surahNumber": 5,
+    "surahName": "المائدة",
+    "ayahNumber": 97,
+    "ayahText": "۞ جَعَلَ ٱللَّهُ ٱلْكَعْبَةَ ٱلْبَيْتَ ٱلْحَرَامَ قِيَٰمًۭا لِّلنَّاسِ"
+  },
+  {
+    "quarter": 51,
+    "juz": 7,
+    "hizb": 13,
+    "quarterInHizb": 3,
+    "surahNumber": 5,
+    "surahName": "المائدة",
+    "ayahNumber": 109,
+    "ayahText": "۞ يَوْمَ يَجْمَعُ ٱللَّهُ ٱلرُّسُلَ فَيَقُولُ مَاذَآ أُجِبْتُمْ"
+  },
+  {
+    "quarter": 52,
+    "juz": 7,
+    "hizb": 13,
+    "quarterInHizb": 4,
+    "surahNumber": 6,
+    "surahName": "الأنعام",
+    "ayahNumber": 13,
+    "ayahText": "۞ وَلَهُۥ مَا سَكَنَ فِى ٱلَّيْلِ وَٱلنَّهَارِ ۚ"
+  },
+  {
+    "quarter": 53,
+    "juz": 7,
+    "hizb": 14,
+    "quarterInHizb": 1,
+    "surahNumber": 6,
+    "surahName": "الأنعام",
+    "ayahNumber": 36,
+    "ayahText": "۞ إِنَّمَا يَسْتَجِيبُ ٱلَّذِينَ يَسْمَعُونَ ۘ وَٱلْمَوْتَىٰ يَبْعَثُهُمُ"
+  },
+  {
+    "quarter": 54,
+    "juz": 7,
+    "hizb": 14,
+    "quarterInHizb": 2,
+    "surahNumber": 6,
+    "surahName": "الأنعام",
+    "ayahNumber": 59,
+    "ayahText": "۞ وَعِندَهُۥ مَفَاتِحُ ٱلْغَيْبِ لَا يَعْلَمُهَآ إِلَّا هُوَ"
+  },
+  {
+    "quarter": 55,
+    "juz": 7,
+    "hizb": 14,
+    "quarterInHizb": 3,
+    "surahNumber": 6,
+    "surahName": "الأنعام",
+    "ayahNumber": 74,
+    "ayahText": "۞ وَإِذْ قَالَ إِبْرَٰهِيمُ لِأَبِيهِ ءَازَرَ أَتَتَّخِذُ أَصْنَامًا"
+  },
+  {
+    "quarter": 56,
+    "juz": 7,
+    "hizb": 14,
+    "quarterInHizb": 4,
+    "surahNumber": 6,
+    "surahName": "الأنعام",
+    "ayahNumber": 95,
+    "ayahText": "۞ إِنَّ ٱللَّهَ فَالِقُ ٱلْحَبِّ وَٱلنَّوَىٰ ۖ يُخْرِجُ"
+  },
+  {
+    "quarter": 57,
+    "juz": 8,
+    "hizb": 15,
+    "quarterInHizb": 1,
+    "surahNumber": 6,
+    "surahName": "الأنعام",
+    "ayahNumber": 111,
+    "ayahText": "۞ وَلَوْ أَنَّنَا نَزَّلْنَآ إِلَيْهِمُ ٱلْمَلَٰٓئِكَةَ وَكَلَّمَهُمُ ٱلْمَوْتَىٰ"
+  },
+  {
+    "quarter": 58,
+    "juz": 8,
+    "hizb": 15,
+    "quarterInHizb": 2,
+    "surahNumber": 6,
+    "surahName": "الأنعام",
+    "ayahNumber": 127,
+    "ayahText": "۞ لَهُمْ دَارُ ٱلسَّلَٰمِ عِندَ رَبِّهِمْ ۖ وَهُوَ"
+  },
+  {
+    "quarter": 59,
+    "juz": 8,
+    "hizb": 15,
+    "quarterInHizb": 3,
+    "surahNumber": 6,
+    "surahName": "الأنعام",
+    "ayahNumber": 141,
+    "ayahText": "۞ وَهُوَ ٱلَّذِىٓ أَنشَأَ جَنَّٰتٍۢ مَّعْرُوشَٰتٍۢ وَغَيْرَ مَعْرُوشَٰتٍۢ"
+  },
+  {
+    "quarter": 60,
+    "juz": 8,
+    "hizb": 15,
+    "quarterInHizb": 4,
+    "surahNumber": 6,
+    "surahName": "الأنعام",
+    "ayahNumber": 151,
+    "ayahText": "۞ قُلْ تَعَالَوْا۟ أَتْلُ مَا حَرَّمَ رَبُّكُمْ عَلَيْكُمْ"
+  },
+  {
+    "quarter": 61,
+    "juz": 8,
+    "hizb": 16,
+    "quarterInHizb": 1,
+    "surahNumber": 7,
+    "surahName": "الأعراف",
+    "ayahNumber": 1,
+    "ayahText": "الٓمٓصٓ"
+  },
+  {
+    "quarter": 62,
+    "juz": 8,
+    "hizb": 16,
+    "quarterInHizb": 2,
+    "surahNumber": 7,
+    "surahName": "الأعراف",
+    "ayahNumber": 31,
+    "ayahText": "۞ يَٰبَنِىٓ ءَادَمَ خُذُوا۟ زِينَتَكُمْ عِندَ كُلِّ مَسْجِدٍۢ"
+  },
+  {
+    "quarter": 63,
+    "juz": 8,
+    "hizb": 16,
+    "quarterInHizb": 3,
+    "surahNumber": 7,
+    "surahName": "الأعراف",
+    "ayahNumber": 47,
+    "ayahText": "۞ وَإِذَا صُرِفَتْ أَبْصَٰرُهُمْ تِلْقَآءَ أَصْحَٰبِ ٱلنَّارِ قَالُوا۟"
+  },
+  {
+    "quarter": 64,
+    "juz": 8,
+    "hizb": 16,
+    "quarterInHizb": 4,
+    "surahNumber": 7,
+    "surahName": "الأعراف",
+    "ayahNumber": 65,
+    "ayahText": "۞ وَإِلَىٰ عَادٍ أَخَاهُمْ هُودًۭا ۗ قَالَ يَٰقَوْمِ"
+  },
+  {
+    "quarter": 65,
+    "juz": 9,
+    "hizb": 17,
+    "quarterInHizb": 1,
+    "surahNumber": 7,
+    "surahName": "الأعراف",
+    "ayahNumber": 88,
+    "ayahText": "۞ قَالَ ٱلْمَلَأُ ٱلَّذِينَ ٱسْتَكْبَرُوا۟ مِن قَوْمِهِۦ لَنُخْرِجَنَّكَ"
+  },
+  {
+    "quarter": 66,
+    "juz": 9,
+    "hizb": 17,
+    "quarterInHizb": 2,
+    "surahNumber": 7,
+    "surahName": "الأعراف",
+    "ayahNumber": 117,
+    "ayahText": "۞ وَأَوْحَيْنَآ إِلَىٰ مُوسَىٰٓ أَنْ أَلْقِ عَصَاكَ ۖ"
+  },
+  {
+    "quarter": 67,
+    "juz": 9,
+    "hizb": 17,
+    "quarterInHizb": 3,
+    "surahNumber": 7,
+    "surahName": "الأعراف",
+    "ayahNumber": 142,
+    "ayahText": "۞ وَوَٰعَدْنَا مُوسَىٰ ثَلَٰثِينَ لَيْلَةًۭ وَأَتْمَمْنَٰهَا بِعَشْرٍۢ فَتَمَّ"
+  },
+  {
+    "quarter": 68,
+    "juz": 9,
+    "hizb": 17,
+    "quarterInHizb": 4,
+    "surahNumber": 7,
+    "surahName": "الأعراف",
+    "ayahNumber": 156,
+    "ayahText": "۞ وَٱكْتُبْ لَنَا فِى هَٰذِهِ ٱلدُّنْيَا حَسَنَةًۭ وَفِى"
+  },
+  {
+    "quarter": 69,
+    "juz": 9,
+    "hizb": 18,
+    "quarterInHizb": 1,
+    "surahNumber": 7,
+    "surahName": "الأعراف",
+    "ayahNumber": 171,
+    "ayahText": "۞ وَإِذْ نَتَقْنَا ٱلْجَبَلَ فَوْقَهُمْ كَأَنَّهُۥ ظُلَّةٌۭ وَظَنُّوٓا۟"
+  },
+  {
+    "quarter": 70,
+    "juz": 9,
+    "hizb": 18,
+    "quarterInHizb": 2,
+    "surahNumber": 7,
+    "surahName": "الأعراف",
+    "ayahNumber": 189,
+    "ayahText": "۞ هُوَ ٱلَّذِى خَلَقَكُم مِّن نَّفْسٍۢ وَٰحِدَةٍۢ وَجَعَلَ"
+  },
+  {
+    "quarter": 71,
+    "juz": 9,
+    "hizb": 18,
+    "quarterInHizb": 3,
+    "surahNumber": 8,
+    "surahName": "الأنفال",
+    "ayahNumber": 1,
+    "ayahText": "يَسْـَٔلُونَكَ عَنِ ٱلْأَنفَالِ ۖ قُلِ ٱلْأَنفَالُ لِلَّهِ وَٱلرَّسُولِ"
+  },
+  {
+    "quarter": 72,
+    "juz": 9,
+    "hizb": 18,
+    "quarterInHizb": 4,
+    "surahNumber": 8,
+    "surahName": "الأنفال",
+    "ayahNumber": 22,
+    "ayahText": "۞ إِنَّ شَرَّ ٱلدَّوَآبِّ عِندَ ٱللَّهِ ٱلصُّمُّ ٱلْبُكْمُ"
+  },
+  {
+    "quarter": 73,
+    "juz": 10,
+    "hizb": 19,
+    "quarterInHizb": 1,
+    "surahNumber": 8,
+    "surahName": "الأنفال",
+    "ayahNumber": 41,
+    "ayahText": "۞ وَٱعْلَمُوٓا۟ أَنَّمَا غَنِمْتُم مِّن شَىْءٍۢ فَأَنَّ لِلَّهِ"
+  },
+  {
+    "quarter": 74,
+    "juz": 10,
+    "hizb": 19,
+    "quarterInHizb": 2,
+    "surahNumber": 8,
+    "surahName": "الأنفال",
+    "ayahNumber": 61,
+    "ayahText": "۞ وَإِن جَنَحُوا۟ لِلسَّلْمِ فَٱجْنَحْ لَهَا وَتَوَكَّلْ عَلَى"
+  },
+  {
+    "quarter": 75,
+    "juz": 10,
+    "hizb": 19,
+    "quarterInHizb": 3,
+    "surahNumber": 9,
+    "surahName": "التوبة",
+    "ayahNumber": 1,
+    "ayahText": "بَرَآءَةٌۭ مِّنَ ٱللَّهِ وَرَسُولِهِۦٓ إِلَى ٱلَّذِينَ عَٰهَدتُّم مِّنَ"
+  },
+  {
+    "quarter": 76,
+    "juz": 10,
+    "hizb": 19,
+    "quarterInHizb": 4,
+    "surahNumber": 9,
+    "surahName": "التوبة",
+    "ayahNumber": 19,
+    "ayahText": "۞ أَجَعَلْتُمْ سِقَايَةَ ٱلْحَآجِّ وَعِمَارَةَ ٱلْمَسْجِدِ ٱلْحَرَامِ كَمَنْ"
+  },
+  {
+    "quarter": 77,
+    "juz": 10,
+    "hizb": 20,
+    "quarterInHizb": 1,
+    "surahNumber": 9,
+    "surahName": "التوبة",
+    "ayahNumber": 34,
+    "ayahText": "۞ يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوٓا۟ إِنَّ كَثِيرًۭا مِّنَ ٱلْأَحْبَارِ"
+  },
+  {
+    "quarter": 78,
+    "juz": 10,
+    "hizb": 20,
+    "quarterInHizb": 2,
+    "surahNumber": 9,
+    "surahName": "التوبة",
+    "ayahNumber": 46,
+    "ayahText": "۞ وَلَوْ أَرَادُوا۟ ٱلْخُرُوجَ لَأَعَدُّوا۟ لَهُۥ عُدَّةًۭ وَلَٰكِن"
+  },
+  {
+    "quarter": 79,
+    "juz": 10,
+    "hizb": 20,
+    "quarterInHizb": 3,
+    "surahNumber": 9,
+    "surahName": "التوبة",
+    "ayahNumber": 60,
+    "ayahText": "۞ إِنَّمَا ٱلصَّدَقَٰتُ لِلْفُقَرَآءِ وَٱلْمَسَٰكِينِ وَٱلْعَٰمِلِينَ عَلَيْهَا وَٱلْمُؤَلَّفَةِ"
+  },
+  {
+    "quarter": 80,
+    "juz": 10,
+    "hizb": 20,
+    "quarterInHizb": 4,
+    "surahNumber": 9,
+    "surahName": "التوبة",
+    "ayahNumber": 75,
+    "ayahText": "۞ وَمِنْهُم مَّنْ عَٰهَدَ ٱللَّهَ لَئِنْ ءَاتَىٰنَا مِن"
+  },
+  {
+    "quarter": 81,
+    "juz": 11,
+    "hizb": 21,
+    "quarterInHizb": 1,
+    "surahNumber": 9,
+    "surahName": "التوبة",
+    "ayahNumber": 93,
+    "ayahText": "۞ إِنَّمَا ٱلسَّبِيلُ عَلَى ٱلَّذِينَ يَسْتَـْٔذِنُونَكَ وَهُمْ أَغْنِيَآءُ"
+  },
+  {
+    "quarter": 82,
+    "juz": 11,
+    "hizb": 21,
+    "quarterInHizb": 2,
+    "surahNumber": 9,
+    "surahName": "التوبة",
+    "ayahNumber": 111,
+    "ayahText": "۞ إِنَّ ٱللَّهَ ٱشْتَرَىٰ مِنَ ٱلْمُؤْمِنِينَ أَنفُسَهُمْ وَأَمْوَٰلَهُم"
+  },
+  {
+    "quarter": 83,
+    "juz": 11,
+    "hizb": 21,
+    "quarterInHizb": 3,
+    "surahNumber": 9,
+    "surahName": "التوبة",
+    "ayahNumber": 122,
+    "ayahText": "۞ وَمَا كَانَ ٱلْمُؤْمِنُونَ لِيَنفِرُوا۟ كَآفَّةًۭ ۚ فَلَوْلَا"
+  },
+  {
+    "quarter": 84,
+    "juz": 11,
+    "hizb": 21,
+    "quarterInHizb": 4,
+    "surahNumber": 10,
+    "surahName": "يونس",
+    "ayahNumber": 11,
+    "ayahText": "۞ وَلَوْ يُعَجِّلُ ٱللَّهُ لِلنَّاسِ ٱلشَّرَّ ٱسْتِعْجَالَهُم بِٱلْخَيْرِ"
+  },
+  {
+    "quarter": 85,
+    "juz": 11,
+    "hizb": 22,
+    "quarterInHizb": 1,
+    "surahNumber": 10,
+    "surahName": "يونس",
+    "ayahNumber": 26,
+    "ayahText": "۞ لِّلَّذِينَ أَحْسَنُوا۟ ٱلْحُسْنَىٰ وَزِيَادَةٌۭ ۖ وَلَا يَرْهَقُ"
+  },
+  {
+    "quarter": 86,
+    "juz": 11,
+    "hizb": 22,
+    "quarterInHizb": 2,
+    "surahNumber": 10,
+    "surahName": "يونس",
+    "ayahNumber": 53,
+    "ayahText": "۞ وَيَسْتَنۢبِـُٔونَكَ أَحَقٌّ هُوَ ۖ قُلْ إِى وَرَبِّىٓ"
+  },
+  {
+    "quarter": 87,
+    "juz": 11,
+    "hizb": 22,
+    "quarterInHizb": 3,
+    "surahNumber": 10,
+    "surahName": "يونس",
+    "ayahNumber": 71,
+    "ayahText": "۞ وَٱتْلُ عَلَيْهِمْ نَبَأَ نُوحٍ إِذْ قَالَ لِقَوْمِهِۦ"
+  },
+  {
+    "quarter": 88,
+    "juz": 11,
+    "hizb": 22,
+    "quarterInHizb": 4,
+    "surahNumber": 10,
+    "surahName": "يونس",
+    "ayahNumber": 90,
+    "ayahText": "۞ وَجَٰوَزْنَا بِبَنِىٓ إِسْرَٰٓءِيلَ ٱلْبَحْرَ فَأَتْبَعَهُمْ فِرْعَوْنُ وَجُنُودُهُۥ"
+  },
+  {
+    "quarter": 89,
+    "juz": 12,
+    "hizb": 23,
+    "quarterInHizb": 1,
+    "surahNumber": 11,
+    "surahName": "هود",
+    "ayahNumber": 6,
+    "ayahText": "۞ وَمَا مِن دَآبَّةٍۢ فِى ٱلْأَرْضِ إِلَّا عَلَى"
+  },
+  {
+    "quarter": 90,
+    "juz": 12,
+    "hizb": 23,
+    "quarterInHizb": 2,
+    "surahNumber": 11,
+    "surahName": "هود",
+    "ayahNumber": 24,
+    "ayahText": "۞ مَثَلُ ٱلْفَرِيقَيْنِ كَٱلْأَعْمَىٰ وَٱلْأَصَمِّ وَٱلْبَصِيرِ وَٱلسَّمِيعِ ۚ"
+  },
+  {
+    "quarter": 91,
+    "juz": 12,
+    "hizb": 23,
+    "quarterInHizb": 3,
+    "surahNumber": 11,
+    "surahName": "هود",
+    "ayahNumber": 41,
+    "ayahText": "۞ وَقَالَ ٱرْكَبُوا۟ فِيهَا بِسْمِ ٱللَّهِ مَجْر۪ىٰهَا وَمُرْسَىٰهَآ"
+  },
+  {
+    "quarter": 92,
+    "juz": 12,
+    "hizb": 23,
+    "quarterInHizb": 4,
+    "surahNumber": 11,
+    "surahName": "هود",
+    "ayahNumber": 61,
+    "ayahText": "۞ وَإِلَىٰ ثَمُودَ أَخَاهُمْ صَٰلِحًۭا ۚ قَالَ يَٰقَوْمِ"
+  },
+  {
+    "quarter": 93,
+    "juz": 12,
+    "hizb": 24,
+    "quarterInHizb": 1,
+    "surahNumber": 11,
+    "surahName": "هود",
+    "ayahNumber": 84,
+    "ayahText": "۞ وَإِلَىٰ مَدْيَنَ أَخَاهُمْ شُعَيْبًۭا ۚ قَالَ يَٰقَوْمِ"
+  },
+  {
+    "quarter": 94,
+    "juz": 12,
+    "hizb": 24,
+    "quarterInHizb": 2,
+    "surahNumber": 11,
+    "surahName": "هود",
+    "ayahNumber": 108,
+    "ayahText": "۞ وَأَمَّا ٱلَّذِينَ سُعِدُوا۟ فَفِى ٱلْجَنَّةِ خَٰلِدِينَ فِيهَا"
+  },
+  {
+    "quarter": 95,
+    "juz": 12,
+    "hizb": 24,
+    "quarterInHizb": 3,
+    "surahNumber": 12,
+    "surahName": "يوسف",
+    "ayahNumber": 7,
+    "ayahText": "۞ لَّقَدْ كَانَ فِى يُوسُفَ وَإِخْوَتِهِۦٓ ءَايَٰتٌۭ لِّلسَّآئِلِينَ"
+  },
+  {
+    "quarter": 96,
+    "juz": 12,
+    "hizb": 24,
+    "quarterInHizb": 4,
+    "surahNumber": 12,
+    "surahName": "يوسف",
+    "ayahNumber": 30,
+    "ayahText": "۞ وَقَالَ نِسْوَةٌۭ فِى ٱلْمَدِينَةِ ٱمْرَأَتُ ٱلْعَزِيزِ تُرَٰوِدُ"
+  },
+  {
+    "quarter": 97,
+    "juz": 13,
+    "hizb": 25,
+    "quarterInHizb": 1,
+    "surahNumber": 12,
+    "surahName": "يوسف",
+    "ayahNumber": 53,
+    "ayahText": "۞ وَمَآ أُبَرِّئُ نَفْسِىٓ ۚ إِنَّ ٱلنَّفْسَ لَأَمَّارَةٌۢ"
+  },
+  {
+    "quarter": 98,
+    "juz": 13,
+    "hizb": 25,
+    "quarterInHizb": 2,
+    "surahNumber": 12,
+    "surahName": "يوسف",
+    "ayahNumber": 77,
+    "ayahText": "۞ قَالُوٓا۟ إِن يَسْرِقْ فَقَدْ سَرَقَ أَخٌۭ لَّهُۥ"
+  },
+  {
+    "quarter": 99,
+    "juz": 13,
+    "hizb": 25,
+    "quarterInHizb": 3,
+    "surahNumber": 12,
+    "surahName": "يوسف",
+    "ayahNumber": 101,
+    "ayahText": "۞ رَبِّ قَدْ ءَاتَيْتَنِى مِنَ ٱلْمُلْكِ وَعَلَّمْتَنِى مِن"
+  },
+  {
+    "quarter": 100,
+    "juz": 13,
+    "hizb": 25,
+    "quarterInHizb": 4,
+    "surahNumber": 13,
+    "surahName": "الرعد",
+    "ayahNumber": 5,
+    "ayahText": "۞ وَإِن تَعْجَبْ فَعَجَبٌۭ قَوْلُهُمْ أَءِذَا كُنَّا تُرَٰبًا"
+  },
+  {
+    "quarter": 101,
+    "juz": 13,
+    "hizb": 26,
+    "quarterInHizb": 1,
+    "surahNumber": 13,
+    "surahName": "الرعد",
+    "ayahNumber": 19,
+    "ayahText": "۞ أَفَمَن يَعْلَمُ أَنَّمَآ أُنزِلَ إِلَيْكَ مِن رَّبِّكَ"
+  },
+  {
+    "quarter": 102,
+    "juz": 13,
+    "hizb": 26,
+    "quarterInHizb": 2,
+    "surahNumber": 13,
+    "surahName": "الرعد",
+    "ayahNumber": 35,
+    "ayahText": "۞ مَّثَلُ ٱلْجَنَّةِ ٱلَّتِى وُعِدَ ٱلْمُتَّقُونَ ۖ تَجْرِى"
+  },
+  {
+    "quarter": 103,
+    "juz": 13,
+    "hizb": 26,
+    "quarterInHizb": 3,
+    "surahNumber": 14,
+    "surahName": "إبراهيم",
+    "ayahNumber": 10,
+    "ayahText": "۞ قَالَتْ رُسُلُهُمْ أَفِى ٱللَّهِ شَكٌّۭ فَاطِرِ ٱلسَّمَٰوَٰتِ"
+  },
+  {
+    "quarter": 104,
+    "juz": 13,
+    "hizb": 26,
+    "quarterInHizb": 4,
+    "surahNumber": 14,
+    "surahName": "إبراهيم",
+    "ayahNumber": 28,
+    "ayahText": "۞ أَلَمْ تَرَ إِلَى ٱلَّذِينَ بَدَّلُوا۟ نِعْمَتَ ٱللَّهِ"
+  },
+  {
+    "quarter": 105,
+    "juz": 14,
+    "hizb": 27,
+    "quarterInHizb": 1,
+    "surahNumber": 15,
+    "surahName": "الحجر",
+    "ayahNumber": 1,
+    "ayahText": "الٓر ۚ تِلْكَ ءَايَٰتُ ٱلْكِتَٰبِ وَقُرْءَانٍۢ مُّبِينٍۢ"
+  },
+  {
+    "quarter": 106,
+    "juz": 14,
+    "hizb": 27,
+    "quarterInHizb": 2,
+    "surahNumber": 15,
+    "surahName": "الحجر",
+    "ayahNumber": 50,
+    "ayahText": "وَأَنَّ عَذَابِى هُوَ ٱلْعَذَابُ ٱلْأَلِيمُ"
+  },
+  {
+    "quarter": 107,
+    "juz": 14,
+    "hizb": 27,
+    "quarterInHizb": 3,
+    "surahNumber": 16,
+    "surahName": "النحل",
+    "ayahNumber": 1,
+    "ayahText": "أَتَىٰٓ أَمْرُ ٱللَّهِ فَلَا تَسْتَعْجِلُوهُ ۚ سُبْحَٰنَهُۥ وَتَعَٰلَىٰ"
+  },
+  {
+    "quarter": 108,
+    "juz": 14,
+    "hizb": 27,
+    "quarterInHizb": 4,
+    "surahNumber": 16,
+    "surahName": "النحل",
+    "ayahNumber": 30,
+    "ayahText": "۞ وَقِيلَ لِلَّذِينَ ٱتَّقَوْا۟ مَاذَآ أَنزَلَ رَبُّكُمْ ۚ"
+  },
+  {
+    "quarter": 109,
+    "juz": 14,
+    "hizb": 28,
+    "quarterInHizb": 1,
+    "surahNumber": 16,
+    "surahName": "النحل",
+    "ayahNumber": 51,
+    "ayahText": "۞ وَقَالَ ٱللَّهُ لَا تَتَّخِذُوٓا۟ إِلَٰهَيْنِ ٱثْنَيْنِ ۖ"
+  },
+  {
+    "quarter": 110,
+    "juz": 14,
+    "hizb": 28,
+    "quarterInHizb": 2,
+    "surahNumber": 16,
+    "surahName": "النحل",
+    "ayahNumber": 75,
+    "ayahText": "۞ ضَرَبَ ٱللَّهُ مَثَلًا عَبْدًۭا مَّمْلُوكًۭا لَّا يَقْدِرُ"
+  },
+  {
+    "quarter": 111,
+    "juz": 14,
+    "hizb": 28,
+    "quarterInHizb": 3,
+    "surahNumber": 16,
+    "surahName": "النحل",
+    "ayahNumber": 90,
+    "ayahText": "۞ إِنَّ ٱللَّهَ يَأْمُرُ بِٱلْعَدْلِ وَٱلْإِحْسَٰنِ وَإِيتَآئِ ذِى"
+  },
+  {
+    "quarter": 112,
+    "juz": 14,
+    "hizb": 28,
+    "quarterInHizb": 4,
+    "surahNumber": 16,
+    "surahName": "النحل",
+    "ayahNumber": 111,
+    "ayahText": "۞ يَوْمَ تَأْتِى كُلُّ نَفْسٍۢ تُجَٰدِلُ عَن نَّفْسِهَا"
+  },
+  {
+    "quarter": 113,
+    "juz": 15,
+    "hizb": 29,
+    "quarterInHizb": 1,
+    "surahNumber": 17,
+    "surahName": "الإسراء",
+    "ayahNumber": 1,
+    "ayahText": "سُبْحَٰنَ ٱلَّذِىٓ أَسْرَىٰ بِعَبْدِهِۦ لَيْلًۭا مِّنَ ٱلْمَسْجِدِ ٱلْحَرَامِ"
+  },
+  {
+    "quarter": 114,
+    "juz": 15,
+    "hizb": 29,
+    "quarterInHizb": 2,
+    "surahNumber": 17,
+    "surahName": "الإسراء",
+    "ayahNumber": 23,
+    "ayahText": "۞ وَقَضَىٰ رَبُّكَ أَلَّا تَعْبُدُوٓا۟ إِلَّآ إِيَّاهُ وَبِٱلْوَٰلِدَيْنِ"
+  },
+  {
+    "quarter": 115,
+    "juz": 15,
+    "hizb": 29,
+    "quarterInHizb": 3,
+    "surahNumber": 17,
+    "surahName": "الإسراء",
+    "ayahNumber": 50,
+    "ayahText": "۞ قُلْ كُونُوا۟ حِجَارَةً أَوْ حَدِيدًا"
+  },
+  {
+    "quarter": 116,
+    "juz": 15,
+    "hizb": 29,
+    "quarterInHizb": 4,
+    "surahNumber": 17,
+    "surahName": "الإسراء",
+    "ayahNumber": 70,
+    "ayahText": "۞ وَلَقَدْ كَرَّمْنَا بَنِىٓ ءَادَمَ وَحَمَلْنَٰهُمْ فِى ٱلْبَرِّ"
+  },
+  {
+    "quarter": 117,
+    "juz": 15,
+    "hizb": 30,
+    "quarterInHizb": 1,
+    "surahNumber": 17,
+    "surahName": "الإسراء",
+    "ayahNumber": 99,
+    "ayahText": "۞ أَوَلَمْ يَرَوْا۟ أَنَّ ٱللَّهَ ٱلَّذِى خَلَقَ ٱلسَّمَٰوَٰتِ"
+  },
+  {
+    "quarter": 118,
+    "juz": 15,
+    "hizb": 30,
+    "quarterInHizb": 2,
+    "surahNumber": 18,
+    "surahName": "الكهف",
+    "ayahNumber": 17,
+    "ayahText": "۞ وَتَرَى ٱلشَّمْسَ إِذَا طَلَعَت تَّزَٰوَرُ عَن كَهْفِهِمْ"
+  },
+  {
+    "quarter": 119,
+    "juz": 15,
+    "hizb": 30,
+    "quarterInHizb": 3,
+    "surahNumber": 18,
+    "surahName": "الكهف",
+    "ayahNumber": 32,
+    "ayahText": "۞ وَٱضْرِبْ لَهُم مَّثَلًۭا رَّجُلَيْنِ جَعَلْنَا لِأَحَدِهِمَا جَنَّتَيْنِ"
+  },
+  {
+    "quarter": 120,
+    "juz": 15,
+    "hizb": 30,
+    "quarterInHizb": 4,
+    "surahNumber": 18,
+    "surahName": "الكهف",
+    "ayahNumber": 51,
+    "ayahText": "۞ مَّآ أَشْهَدتُّهُمْ خَلْقَ ٱلسَّمَٰوَٰتِ وَٱلْأَرْضِ وَلَا خَلْقَ"
+  },
+  {
+    "quarter": 121,
+    "juz": 16,
+    "hizb": 31,
+    "quarterInHizb": 1,
+    "surahNumber": 18,
+    "surahName": "الكهف",
+    "ayahNumber": 75,
+    "ayahText": "۞ قَالَ أَلَمْ أَقُل لَّكَ إِنَّكَ لَن تَسْتَطِيعَ"
+  },
+  {
+    "quarter": 122,
+    "juz": 16,
+    "hizb": 31,
+    "quarterInHizb": 2,
+    "surahNumber": 18,
+    "surahName": "الكهف",
+    "ayahNumber": 99,
+    "ayahText": "۞ وَتَرَكْنَا بَعْضَهُمْ يَوْمَئِذٍۢ يَمُوجُ فِى بَعْضٍۢ ۖ"
+  },
+  {
+    "quarter": 123,
+    "juz": 16,
+    "hizb": 31,
+    "quarterInHizb": 3,
+    "surahNumber": 19,
+    "surahName": "مريم",
+    "ayahNumber": 22,
+    "ayahText": "۞ فَحَمَلَتْهُ فَٱنتَبَذَتْ بِهِۦ مَكَانًۭا قَصِيًّۭا"
+  },
+  {
+    "quarter": 124,
+    "juz": 16,
+    "hizb": 31,
+    "quarterInHizb": 4,
+    "surahNumber": 19,
+    "surahName": "مريم",
+    "ayahNumber": 59,
+    "ayahText": "۞ فَخَلَفَ مِنۢ بَعْدِهِمْ خَلْفٌ أَضَاعُوا۟ ٱلصَّلَوٰةَ وَٱتَّبَعُوا۟"
+  },
+  {
+    "quarter": 125,
+    "juz": 16,
+    "hizb": 32,
+    "quarterInHizb": 1,
+    "surahNumber": 20,
+    "surahName": "طه",
+    "ayahNumber": 1,
+    "ayahText": "طه"
+  },
+  {
+    "quarter": 126,
+    "juz": 16,
+    "hizb": 32,
+    "quarterInHizb": 2,
+    "surahNumber": 20,
+    "surahName": "طه",
+    "ayahNumber": 55,
+    "ayahText": "۞ مِنْهَا خَلَقْنَٰكُمْ وَفِيهَا نُعِيدُكُمْ وَمِنْهَا نُخْرِجُكُمْ تَارَةً"
+  },
+  {
+    "quarter": 127,
+    "juz": 16,
+    "hizb": 32,
+    "quarterInHizb": 3,
+    "surahNumber": 20,
+    "surahName": "طه",
+    "ayahNumber": 83,
+    "ayahText": "۞ وَمَآ أَعْجَلَكَ عَن قَوْمِكَ يَٰمُوسَىٰ"
+  },
+  {
+    "quarter": 128,
+    "juz": 16,
+    "hizb": 32,
+    "quarterInHizb": 4,
+    "surahNumber": 20,
+    "surahName": "طه",
+    "ayahNumber": 111,
+    "ayahText": "۞ وَعَنَتِ ٱلْوُجُوهُ لِلْحَىِّ ٱلْقَيُّومِ ۖ وَقَدْ خَابَ"
+  },
+  {
+    "quarter": 129,
+    "juz": 17,
+    "hizb": 33,
+    "quarterInHizb": 1,
+    "surahNumber": 21,
+    "surahName": "الأنبياء",
+    "ayahNumber": 1,
+    "ayahText": "ٱقْتَرَبَ لِلنَّاسِ حِسَابُهُمْ وَهُمْ فِى غَفْلَةٍۢ مُّعْرِضُونَ"
+  },
+  {
+    "quarter": 130,
+    "juz": 17,
+    "hizb": 33,
+    "quarterInHizb": 2,
+    "surahNumber": 21,
+    "surahName": "الأنبياء",
+    "ayahNumber": 29,
+    "ayahText": "۞ وَمَن يَقُلْ مِنْهُمْ إِنِّىٓ إِلَٰهٌۭ مِّن دُونِهِۦ"
+  },
+  {
+    "quarter": 131,
+    "juz": 17,
+    "hizb": 33,
+    "quarterInHizb": 3,
+    "surahNumber": 21,
+    "surahName": "الأنبياء",
+    "ayahNumber": 51,
+    "ayahText": "۞ وَلَقَدْ ءَاتَيْنَآ إِبْرَٰهِيمَ رُشْدَهُۥ مِن قَبْلُ وَكُنَّا"
+  },
+  {
+    "quarter": 132,
+    "juz": 17,
+    "hizb": 33,
+    "quarterInHizb": 4,
+    "surahNumber": 21,
+    "surahName": "الأنبياء",
+    "ayahNumber": 83,
+    "ayahText": "۞ وَأَيُّوبَ إِذْ نَادَىٰ رَبَّهُۥٓ أَنِّى مَسَّنِىَ ٱلضُّرُّ"
+  },
+  {
+    "quarter": 133,
+    "juz": 17,
+    "hizb": 34,
+    "quarterInHizb": 1,
+    "surahNumber": 22,
+    "surahName": "الحج",
+    "ayahNumber": 1,
+    "ayahText": "يَٰٓأَيُّهَا ٱلنَّاسُ ٱتَّقُوا۟ رَبَّكُمْ ۚ إِنَّ زَلْزَلَةَ ٱلسَّاعَةِ"
+  },
+  {
+    "quarter": 134,
+    "juz": 17,
+    "hizb": 34,
+    "quarterInHizb": 2,
+    "surahNumber": 22,
+    "surahName": "الحج",
+    "ayahNumber": 19,
+    "ayahText": "۞ هَٰذَانِ خَصْمَانِ ٱخْتَصَمُوا۟ فِى رَبِّهِمْ ۖ فَٱلَّذِينَ"
+  },
+  {
+    "quarter": 135,
+    "juz": 17,
+    "hizb": 34,
+    "quarterInHizb": 3,
+    "surahNumber": 22,
+    "surahName": "الحج",
+    "ayahNumber": 38,
+    "ayahText": "۞ إِنَّ ٱللَّهَ يُدَٰفِعُ عَنِ ٱلَّذِينَ ءَامَنُوٓا۟ ۗ"
+  },
+  {
+    "quarter": 136,
+    "juz": 17,
+    "hizb": 34,
+    "quarterInHizb": 4,
+    "surahNumber": 22,
+    "surahName": "الحج",
+    "ayahNumber": 60,
+    "ayahText": "۞ ذَٰلِكَ وَمَنْ عَاقَبَ بِمِثْلِ مَا عُوقِبَ بِهِۦ"
+  },
+  {
+    "quarter": 137,
+    "juz": 18,
+    "hizb": 35,
+    "quarterInHizb": 1,
+    "surahNumber": 23,
+    "surahName": "المؤمنون",
+    "ayahNumber": 1,
+    "ayahText": "قَدْ أَفْلَحَ ٱلْمُؤْمِنُونَ"
+  },
+  {
+    "quarter": 138,
+    "juz": 18,
+    "hizb": 35,
+    "quarterInHizb": 2,
+    "surahNumber": 23,
+    "surahName": "المؤمنون",
+    "ayahNumber": 36,
+    "ayahText": "۞ هَيْهَاتَ هَيْهَاتَ لِمَا تُوعَدُونَ"
+  },
+  {
+    "quarter": 139,
+    "juz": 18,
+    "hizb": 35,
+    "quarterInHizb": 3,
+    "surahNumber": 23,
+    "surahName": "المؤمنون",
+    "ayahNumber": 75,
+    "ayahText": "۞ وَلَوْ رَحِمْنَٰهُمْ وَكَشَفْنَا مَا بِهِم مِّن ضُرٍّۢ"
+  },
+  {
+    "quarter": 140,
+    "juz": 18,
+    "hizb": 35,
+    "quarterInHizb": 4,
+    "surahNumber": 24,
+    "surahName": "النور",
+    "ayahNumber": 1,
+    "ayahText": "سُورَةٌ أَنزَلْنَٰهَا وَفَرَضْنَٰهَا وَأَنزَلْنَا فِيهَآ ءَايَٰتٍۭ بَيِّنَٰتٍۢ لَّعَلَّكُمْ"
+  },
+  {
+    "quarter": 141,
+    "juz": 18,
+    "hizb": 36,
+    "quarterInHizb": 1,
+    "surahNumber": 24,
+    "surahName": "النور",
+    "ayahNumber": 21,
+    "ayahText": "۞ يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوا۟ لَا تَتَّبِعُوا۟ خُطُوَٰتِ ٱلشَّيْطَٰنِ"
+  },
+  {
+    "quarter": 142,
+    "juz": 18,
+    "hizb": 36,
+    "quarterInHizb": 2,
+    "surahNumber": 24,
+    "surahName": "النور",
+    "ayahNumber": 35,
+    "ayahText": "۞ ٱللَّهُ نُورُ ٱلسَّمَٰوَٰتِ وَٱلْأَرْضِ ۚ مَثَلُ نُورِهِۦ"
+  },
+  {
+    "quarter": 143,
+    "juz": 18,
+    "hizb": 36,
+    "quarterInHizb": 3,
+    "surahNumber": 24,
+    "surahName": "النور",
+    "ayahNumber": 53,
+    "ayahText": "۞ وَأَقْسَمُوا۟ بِٱللَّهِ جَهْدَ أَيْمَٰنِهِمْ لَئِنْ أَمَرْتَهُمْ لَيَخْرُجُنَّ"
+  },
+  {
+    "quarter": 144,
+    "juz": 18,
+    "hizb": 36,
+    "quarterInHizb": 4,
+    "surahNumber": 25,
+    "surahName": "الفرقان",
+    "ayahNumber": 1,
+    "ayahText": "تَبَارَكَ ٱلَّذِى نَزَّلَ ٱلْفُرْقَانَ عَلَىٰ عَبْدِهِۦ لِيَكُونَ لِلْعَٰلَمِينَ"
+  },
+  {
+    "quarter": 145,
+    "juz": 19,
+    "hizb": 37,
+    "quarterInHizb": 1,
+    "surahNumber": 25,
+    "surahName": "الفرقان",
+    "ayahNumber": 21,
+    "ayahText": "۞ وَقَالَ ٱلَّذِينَ لَا يَرْجُونَ لِقَآءَنَا لَوْلَآ أُنزِلَ"
+  },
+  {
+    "quarter": 146,
+    "juz": 19,
+    "hizb": 37,
+    "quarterInHizb": 2,
+    "surahNumber": 25,
+    "surahName": "الفرقان",
+    "ayahNumber": 53,
+    "ayahText": "۞ وَهُوَ ٱلَّذِى مَرَجَ ٱلْبَحْرَيْنِ هَٰذَا عَذْبٌۭ فُرَاتٌۭ"
+  },
+  {
+    "quarter": 147,
+    "juz": 19,
+    "hizb": 37,
+    "quarterInHizb": 3,
+    "surahNumber": 26,
+    "surahName": "الشعراء",
+    "ayahNumber": 1,
+    "ayahText": "طسٓمٓ"
+  },
+  {
+    "quarter": 148,
+    "juz": 19,
+    "hizb": 37,
+    "quarterInHizb": 4,
+    "surahNumber": 26,
+    "surahName": "الشعراء",
+    "ayahNumber": 52,
+    "ayahText": "۞ وَأَوْحَيْنَآ إِلَىٰ مُوسَىٰٓ أَنْ أَسْرِ بِعِبَادِىٓ إِنَّكُم"
+  },
+  {
+    "quarter": 149,
+    "juz": 19,
+    "hizb": 38,
+    "quarterInHizb": 1,
+    "surahNumber": 26,
+    "surahName": "الشعراء",
+    "ayahNumber": 111,
+    "ayahText": "۞ قَالُوٓا۟ أَنُؤْمِنُ لَكَ وَٱتَّبَعَكَ ٱلْأَرْذَلُونَ"
+  },
+  {
+    "quarter": 150,
+    "juz": 19,
+    "hizb": 38,
+    "quarterInHizb": 2,
+    "surahNumber": 26,
+    "surahName": "الشعراء",
+    "ayahNumber": 181,
+    "ayahText": "۞ أَوْفُوا۟ ٱلْكَيْلَ وَلَا تَكُونُوا۟ مِنَ ٱلْمُخْسِرِينَ"
+  },
+  {
+    "quarter": 151,
+    "juz": 19,
+    "hizb": 38,
+    "quarterInHizb": 3,
+    "surahNumber": 27,
+    "surahName": "النمل",
+    "ayahNumber": 1,
+    "ayahText": "طسٓ ۚ تِلْكَ ءَايَٰتُ ٱلْقُرْءَانِ وَكِتَابٍۢ مُّبِينٍ"
+  },
+  {
+    "quarter": 152,
+    "juz": 19,
+    "hizb": 38,
+    "quarterInHizb": 4,
+    "surahNumber": 27,
+    "surahName": "النمل",
+    "ayahNumber": 27,
+    "ayahText": "۞ قَالَ سَنَنظُرُ أَصَدَقْتَ أَمْ كُنتَ مِنَ ٱلْكَٰذِبِينَ"
+  },
+  {
+    "quarter": 153,
+    "juz": 20,
+    "hizb": 39,
+    "quarterInHizb": 1,
+    "surahNumber": 27,
+    "surahName": "النمل",
+    "ayahNumber": 56,
+    "ayahText": "۞ فَمَا كَانَ جَوَابَ قَوْمِهِۦٓ إِلَّآ أَن قَالُوٓا۟"
+  },
+  {
+    "quarter": 154,
+    "juz": 20,
+    "hizb": 39,
+    "quarterInHizb": 2,
+    "surahNumber": 27,
+    "surahName": "النمل",
+    "ayahNumber": 82,
+    "ayahText": "۞ وَإِذَا وَقَعَ ٱلْقَوْلُ عَلَيْهِمْ أَخْرَجْنَا لَهُمْ دَآبَّةًۭ"
+  },
+  {
+    "quarter": 155,
+    "juz": 20,
+    "hizb": 39,
+    "quarterInHizb": 3,
+    "surahNumber": 28,
+    "surahName": "القصص",
+    "ayahNumber": 12,
+    "ayahText": "۞ وَحَرَّمْنَا عَلَيْهِ ٱلْمَرَاضِعَ مِن قَبْلُ فَقَالَتْ هَلْ"
+  },
+  {
+    "quarter": 156,
+    "juz": 20,
+    "hizb": 39,
+    "quarterInHizb": 4,
+    "surahNumber": 28,
+    "surahName": "القصص",
+    "ayahNumber": 29,
+    "ayahText": "۞ فَلَمَّا قَضَىٰ مُوسَى ٱلْأَجَلَ وَسَارَ بِأَهْلِهِۦٓ ءَانَسَ"
+  },
+  {
+    "quarter": 157,
+    "juz": 20,
+    "hizb": 40,
+    "quarterInHizb": 1,
+    "surahNumber": 28,
+    "surahName": "القصص",
+    "ayahNumber": 51,
+    "ayahText": "۞ وَلَقَدْ وَصَّلْنَا لَهُمُ ٱلْقَوْلَ لَعَلَّهُمْ يَتَذَكَّرُونَ"
+  },
+  {
+    "quarter": 158,
+    "juz": 20,
+    "hizb": 40,
+    "quarterInHizb": 2,
+    "surahNumber": 28,
+    "surahName": "القصص",
+    "ayahNumber": 76,
+    "ayahText": "۞ إِنَّ قَٰرُونَ كَانَ مِن قَوْمِ مُوسَىٰ فَبَغَىٰ"
+  },
+  {
+    "quarter": 159,
+    "juz": 20,
+    "hizb": 40,
+    "quarterInHizb": 3,
+    "surahNumber": 29,
+    "surahName": "العنكبوت",
+    "ayahNumber": 1,
+    "ayahText": "الٓمٓ"
+  },
+  {
+    "quarter": 160,
+    "juz": 20,
+    "hizb": 40,
+    "quarterInHizb": 4,
+    "surahNumber": 29,
+    "surahName": "العنكبوت",
+    "ayahNumber": 26,
+    "ayahText": "۞ فَـَٔامَنَ لَهُۥ لُوطٌۭ ۘ وَقَالَ إِنِّى مُهَاجِرٌ"
+  },
+  {
+    "quarter": 161,
+    "juz": 21,
+    "hizb": 41,
+    "quarterInHizb": 1,
+    "surahNumber": 29,
+    "surahName": "العنكبوت",
+    "ayahNumber": 46,
+    "ayahText": "۞ وَلَا تُجَٰدِلُوٓا۟ أَهْلَ ٱلْكِتَٰبِ إِلَّا بِٱلَّتِى هِىَ"
+  },
+  {
+    "quarter": 162,
+    "juz": 21,
+    "hizb": 41,
+    "quarterInHizb": 2,
+    "surahNumber": 30,
+    "surahName": "الروم",
+    "ayahNumber": 1,
+    "ayahText": "الٓمٓ"
+  },
+  {
+    "quarter": 163,
+    "juz": 21,
+    "hizb": 41,
+    "quarterInHizb": 3,
+    "surahNumber": 30,
+    "surahName": "الروم",
+    "ayahNumber": 31,
+    "ayahText": "۞ مُنِيبِينَ إِلَيْهِ وَٱتَّقُوهُ وَأَقِيمُوا۟ ٱلصَّلَوٰةَ وَلَا تَكُونُوا۟"
+  },
+  {
+    "quarter": 164,
+    "juz": 21,
+    "hizb": 41,
+    "quarterInHizb": 4,
+    "surahNumber": 30,
+    "surahName": "الروم",
+    "ayahNumber": 54,
+    "ayahText": "۞ ٱللَّهُ ٱلَّذِى خَلَقَكُم مِّن ضَعْفٍۢ ثُمَّ جَعَلَ"
+  },
+  {
+    "quarter": 165,
+    "juz": 21,
+    "hizb": 42,
+    "quarterInHizb": 1,
+    "surahNumber": 31,
+    "surahName": "لقمان",
+    "ayahNumber": 22,
+    "ayahText": "۞ وَمَن يُسْلِمْ وَجْهَهُۥٓ إِلَى ٱللَّهِ وَهُوَ مُحْسِنٌۭ"
+  },
+  {
+    "quarter": 166,
+    "juz": 21,
+    "hizb": 42,
+    "quarterInHizb": 2,
+    "surahNumber": 32,
+    "surahName": "السجدة",
+    "ayahNumber": 11,
+    "ayahText": "۞ قُلْ يَتَوَفَّىٰكُم مَّلَكُ ٱلْمَوْتِ ٱلَّذِى وُكِّلَ بِكُمْ"
+  },
+  {
+    "quarter": 167,
+    "juz": 21,
+    "hizb": 42,
+    "quarterInHizb": 3,
+    "surahNumber": 33,
+    "surahName": "الأحزاب",
+    "ayahNumber": 1,
+    "ayahText": "يَٰٓأَيُّهَا ٱلنَّبِىُّ ٱتَّقِ ٱللَّهَ وَلَا تُطِعِ ٱلْكَٰفِرِينَ وَٱلْمُنَٰفِقِينَ"
+  },
+  {
+    "quarter": 168,
+    "juz": 21,
+    "hizb": 42,
+    "quarterInHizb": 4,
+    "surahNumber": 33,
+    "surahName": "الأحزاب",
+    "ayahNumber": 18,
+    "ayahText": "۞ قَدْ يَعْلَمُ ٱللَّهُ ٱلْمُعَوِّقِينَ مِنكُمْ وَٱلْقَآئِلِينَ لِإِخْوَٰنِهِمْ"
+  },
+  {
+    "quarter": 169,
+    "juz": 22,
+    "hizb": 43,
+    "quarterInHizb": 1,
+    "surahNumber": 33,
+    "surahName": "الأحزاب",
+    "ayahNumber": 31,
+    "ayahText": "۞ وَمَن يَقْنُتْ مِنكُنَّ لِلَّهِ وَرَسُولِهِۦ وَتَعْمَلْ صَٰلِحًۭا"
+  },
+  {
+    "quarter": 170,
+    "juz": 22,
+    "hizb": 43,
+    "quarterInHizb": 2,
+    "surahNumber": 33,
+    "surahName": "الأحزاب",
+    "ayahNumber": 51,
+    "ayahText": "۞ تُرْجِى مَن تَشَآءُ مِنْهُنَّ وَتُـْٔوِىٓ إِلَيْكَ مَن"
+  },
+  {
+    "quarter": 171,
+    "juz": 22,
+    "hizb": 43,
+    "quarterInHizb": 3,
+    "surahNumber": 33,
+    "surahName": "الأحزاب",
+    "ayahNumber": 60,
+    "ayahText": "۞ لَّئِن لَّمْ يَنتَهِ ٱلْمُنَٰفِقُونَ وَٱلَّذِينَ فِى قُلُوبِهِم"
+  },
+  {
+    "quarter": 172,
+    "juz": 22,
+    "hizb": 43,
+    "quarterInHizb": 4,
+    "surahNumber": 34,
+    "surahName": "سبأ",
+    "ayahNumber": 10,
+    "ayahText": "۞ وَلَقَدْ ءَاتَيْنَا دَاوُۥدَ مِنَّا فَضْلًۭا ۖ يَٰجِبَالُ"
+  },
+  {
+    "quarter": 173,
+    "juz": 22,
+    "hizb": 44,
+    "quarterInHizb": 1,
+    "surahNumber": 34,
+    "surahName": "سبأ",
+    "ayahNumber": 24,
+    "ayahText": "۞ قُلْ مَن يَرْزُقُكُم مِّنَ ٱلسَّمَٰوَٰتِ وَٱلْأَرْضِ ۖ"
+  },
+  {
+    "quarter": 174,
+    "juz": 22,
+    "hizb": 44,
+    "quarterInHizb": 2,
+    "surahNumber": 34,
+    "surahName": "سبأ",
+    "ayahNumber": 46,
+    "ayahText": "۞ قُلْ إِنَّمَآ أَعِظُكُم بِوَٰحِدَةٍ ۖ أَن تَقُومُوا۟"
+  },
+  {
+    "quarter": 175,
+    "juz": 22,
+    "hizb": 44,
+    "quarterInHizb": 3,
+    "surahNumber": 35,
+    "surahName": "فاطر",
+    "ayahNumber": 15,
+    "ayahText": "۞ يَٰٓأَيُّهَا ٱلنَّاسُ أَنتُمُ ٱلْفُقَرَآءُ إِلَى ٱللَّهِ ۖ"
+  },
+  {
+    "quarter": 176,
+    "juz": 22,
+    "hizb": 44,
+    "quarterInHizb": 4,
+    "surahNumber": 35,
+    "surahName": "فاطر",
+    "ayahNumber": 41,
+    "ayahText": "۞ إِنَّ ٱللَّهَ يُمْسِكُ ٱلسَّمَٰوَٰتِ وَٱلْأَرْضَ أَن تَزُولَا"
+  },
+  {
+    "quarter": 177,
+    "juz": 23,
+    "hizb": 45,
+    "quarterInHizb": 1,
+    "surahNumber": 36,
+    "surahName": "يس",
+    "ayahNumber": 28,
+    "ayahText": "۞ وَمَآ أَنزَلْنَا عَلَىٰ قَوْمِهِۦ مِنۢ بَعْدِهِۦ مِن"
+  },
+  {
+    "quarter": 178,
+    "juz": 23,
+    "hizb": 45,
+    "quarterInHizb": 2,
+    "surahNumber": 36,
+    "surahName": "يس",
+    "ayahNumber": 60,
+    "ayahText": "۞ أَلَمْ أَعْهَدْ إِلَيْكُمْ يَٰبَنِىٓ ءَادَمَ أَن لَّا"
+  },
+  {
+    "quarter": 179,
+    "juz": 23,
+    "hizb": 45,
+    "quarterInHizb": 3,
+    "surahNumber": 37,
+    "surahName": "الصافات",
+    "ayahNumber": 22,
+    "ayahText": "۞ ٱحْشُرُوا۟ ٱلَّذِينَ ظَلَمُوا۟ وَأَزْوَٰجَهُمْ وَمَا كَانُوا۟ يَعْبُدُونَ"
+  },
+  {
+    "quarter": 180,
+    "juz": 23,
+    "hizb": 45,
+    "quarterInHizb": 4,
+    "surahNumber": 37,
+    "surahName": "الصافات",
+    "ayahNumber": 83,
+    "ayahText": "۞ وَإِنَّ مِن شِيعَتِهِۦ لَإِبْرَٰهِيمَ"
+  },
+  {
+    "quarter": 181,
+    "juz": 23,
+    "hizb": 46,
+    "quarterInHizb": 1,
+    "surahNumber": 37,
+    "surahName": "الصافات",
+    "ayahNumber": 145,
+    "ayahText": "۞ فَنَبَذْنَٰهُ بِٱلْعَرَآءِ وَهُوَ سَقِيمٌۭ"
+  },
+  {
+    "quarter": 182,
+    "juz": 23,
+    "hizb": 46,
+    "quarterInHizb": 2,
+    "surahNumber": 38,
+    "surahName": "ص",
+    "ayahNumber": 21,
+    "ayahText": "۞ وَهَلْ أَتَىٰكَ نَبَؤُا۟ ٱلْخَصْمِ إِذْ تَسَوَّرُوا۟ ٱلْمِحْرَابَ"
+  },
+  {
+    "quarter": 183,
+    "juz": 23,
+    "hizb": 46,
+    "quarterInHizb": 3,
+    "surahNumber": 38,
+    "surahName": "ص",
+    "ayahNumber": 52,
+    "ayahText": "۞ وَعِندَهُمْ قَٰصِرَٰتُ ٱلطَّرْفِ أَتْرَابٌ"
+  },
+  {
+    "quarter": 184,
+    "juz": 23,
+    "hizb": 46,
+    "quarterInHizb": 4,
+    "surahNumber": 39,
+    "surahName": "الزمر",
+    "ayahNumber": 8,
+    "ayahText": "۞ وَإِذَا مَسَّ ٱلْإِنسَٰنَ ضُرٌّۭ دَعَا رَبَّهُۥ مُنِيبًا"
+  },
+  {
+    "quarter": 185,
+    "juz": 24,
+    "hizb": 47,
+    "quarterInHizb": 1,
+    "surahNumber": 39,
+    "surahName": "الزمر",
+    "ayahNumber": 32,
+    "ayahText": "۞ فَمَنْ أَظْلَمُ مِمَّن كَذَبَ عَلَى ٱللَّهِ وَكَذَّبَ"
+  },
+  {
+    "quarter": 186,
+    "juz": 24,
+    "hizb": 47,
+    "quarterInHizb": 2,
+    "surahNumber": 39,
+    "surahName": "الزمر",
+    "ayahNumber": 53,
+    "ayahText": "۞ قُلْ يَٰعِبَادِىَ ٱلَّذِينَ أَسْرَفُوا۟ عَلَىٰٓ أَنفُسِهِمْ لَا"
+  },
+  {
+    "quarter": 187,
+    "juz": 24,
+    "hizb": 47,
+    "quarterInHizb": 3,
+    "surahNumber": 40,
+    "surahName": "غافر",
+    "ayahNumber": 1,
+    "ayahText": "حمٓ"
+  },
+  {
+    "quarter": 188,
+    "juz": 24,
+    "hizb": 47,
+    "quarterInHizb": 4,
+    "surahNumber": 40,
+    "surahName": "غافر",
+    "ayahNumber": 21,
+    "ayahText": "۞ أَوَلَمْ يَسِيرُوا۟ فِى ٱلْأَرْضِ فَيَنظُرُوا۟ كَيْفَ كَانَ"
+  },
+  {
+    "quarter": 189,
+    "juz": 24,
+    "hizb": 48,
+    "quarterInHizb": 1,
+    "surahNumber": 40,
+    "surahName": "غافر",
+    "ayahNumber": 41,
+    "ayahText": "۞ وَيَٰقَوْمِ مَا لِىٓ أَدْعُوكُمْ إِلَى ٱلنَّجَوٰةِ وَتَدْعُونَنِىٓ"
+  },
+  {
+    "quarter": 190,
+    "juz": 24,
+    "hizb": 48,
+    "quarterInHizb": 2,
+    "surahNumber": 40,
+    "surahName": "غافر",
+    "ayahNumber": 66,
+    "ayahText": "۞ قُلْ إِنِّى نُهِيتُ أَنْ أَعْبُدَ ٱلَّذِينَ تَدْعُونَ"
+  },
+  {
+    "quarter": 191,
+    "juz": 24,
+    "hizb": 48,
+    "quarterInHizb": 3,
+    "surahNumber": 41,
+    "surahName": "فصلت",
+    "ayahNumber": 9,
+    "ayahText": "۞ قُلْ أَئِنَّكُمْ لَتَكْفُرُونَ بِٱلَّذِى خَلَقَ ٱلْأَرْضَ فِى"
+  },
+  {
+    "quarter": 192,
+    "juz": 24,
+    "hizb": 48,
+    "quarterInHizb": 4,
+    "surahNumber": 41,
+    "surahName": "فصلت",
+    "ayahNumber": 25,
+    "ayahText": "۞ وَقَيَّضْنَا لَهُمْ قُرَنَآءَ فَزَيَّنُوا۟ لَهُم مَّا بَيْنَ"
+  },
+  {
+    "quarter": 193,
+    "juz": 25,
+    "hizb": 49,
+    "quarterInHizb": 1,
+    "surahNumber": 41,
+    "surahName": "فصلت",
+    "ayahNumber": 47,
+    "ayahText": "۞ إِلَيْهِ يُرَدُّ عِلْمُ ٱلسَّاعَةِ ۚ وَمَا تَخْرُجُ"
+  },
+  {
+    "quarter": 194,
+    "juz": 25,
+    "hizb": 49,
+    "quarterInHizb": 2,
+    "surahNumber": 42,
+    "surahName": "الشورى",
+    "ayahNumber": 13,
+    "ayahText": "۞ شَرَعَ لَكُم مِّنَ ٱلدِّينِ مَا وَصَّىٰ بِهِۦ"
+  },
+  {
+    "quarter": 195,
+    "juz": 25,
+    "hizb": 49,
+    "quarterInHizb": 3,
+    "surahNumber": 42,
+    "surahName": "الشورى",
+    "ayahNumber": 27,
+    "ayahText": "۞ وَلَوْ بَسَطَ ٱللَّهُ ٱلرِّزْقَ لِعِبَادِهِۦ لَبَغَوْا۟ فِى"
+  },
+  {
+    "quarter": 196,
+    "juz": 25,
+    "hizb": 49,
+    "quarterInHizb": 4,
+    "surahNumber": 42,
+    "surahName": "الشورى",
+    "ayahNumber": 51,
+    "ayahText": "۞ وَمَا كَانَ لِبَشَرٍ أَن يُكَلِّمَهُ ٱللَّهُ إِلَّا"
+  },
+  {
+    "quarter": 197,
+    "juz": 25,
+    "hizb": 50,
+    "quarterInHizb": 1,
+    "surahNumber": 43,
+    "surahName": "الزخرف",
+    "ayahNumber": 24,
+    "ayahText": "۞ قَٰلَ أَوَلَوْ جِئْتُكُم بِأَهْدَىٰ مِمَّا وَجَدتُّمْ عَلَيْهِ"
+  },
+  {
+    "quarter": 198,
+    "juz": 25,
+    "hizb": 50,
+    "quarterInHizb": 2,
+    "surahNumber": 43,
+    "surahName": "الزخرف",
+    "ayahNumber": 57,
+    "ayahText": "۞ وَلَمَّا ضُرِبَ ٱبْنُ مَرْيَمَ مَثَلًا إِذَا قَوْمُكَ"
+  },
+  {
+    "quarter": 199,
+    "juz": 25,
+    "hizb": 50,
+    "quarterInHizb": 3,
+    "surahNumber": 44,
+    "surahName": "الدخان",
+    "ayahNumber": 17,
+    "ayahText": "۞ وَلَقَدْ فَتَنَّا قَبْلَهُمْ قَوْمَ فِرْعَوْنَ وَجَآءَهُمْ رَسُولٌۭ"
+  },
+  {
+    "quarter": 200,
+    "juz": 25,
+    "hizb": 50,
+    "quarterInHizb": 4,
+    "surahNumber": 45,
+    "surahName": "الجاثية",
+    "ayahNumber": 12,
+    "ayahText": "۞ ٱللَّهُ ٱلَّذِى سَخَّرَ لَكُمُ ٱلْبَحْرَ لِتَجْرِىَ ٱلْفُلْكُ"
+  },
+  {
+    "quarter": 201,
+    "juz": 26,
+    "hizb": 51,
+    "quarterInHizb": 1,
+    "surahNumber": 46,
+    "surahName": "الأحقاف",
+    "ayahNumber": 1,
+    "ayahText": "حمٓ"
+  },
+  {
+    "quarter": 202,
+    "juz": 26,
+    "hizb": 51,
+    "quarterInHizb": 2,
+    "surahNumber": 46,
+    "surahName": "الأحقاف",
+    "ayahNumber": 21,
+    "ayahText": "۞ وَٱذْكُرْ أَخَا عَادٍ إِذْ أَنذَرَ قَوْمَهُۥ بِٱلْأَحْقَافِ"
+  },
+  {
+    "quarter": 203,
+    "juz": 26,
+    "hizb": 51,
+    "quarterInHizb": 3,
+    "surahNumber": 47,
+    "surahName": "محمد",
+    "ayahNumber": 10,
+    "ayahText": "۞ أَفَلَمْ يَسِيرُوا۟ فِى ٱلْأَرْضِ فَيَنظُرُوا۟ كَيْفَ كَانَ"
+  },
+  {
+    "quarter": 204,
+    "juz": 26,
+    "hizb": 51,
+    "quarterInHizb": 4,
+    "surahNumber": 47,
+    "surahName": "محمد",
+    "ayahNumber": 33,
+    "ayahText": "۞ يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوٓا۟ أَطِيعُوا۟ ٱللَّهَ وَأَطِيعُوا۟ ٱلرَّسُولَ"
+  },
+  {
+    "quarter": 205,
+    "juz": 26,
+    "hizb": 52,
+    "quarterInHizb": 1,
+    "surahNumber": 48,
+    "surahName": "الفتح",
+    "ayahNumber": 18,
+    "ayahText": "۞ لَّقَدْ رَضِىَ ٱللَّهُ عَنِ ٱلْمُؤْمِنِينَ إِذْ يُبَايِعُونَكَ"
+  },
+  {
+    "quarter": 206,
+    "juz": 26,
+    "hizb": 52,
+    "quarterInHizb": 2,
+    "surahNumber": 49,
+    "surahName": "الحجرات",
+    "ayahNumber": 1,
+    "ayahText": "يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوا۟ لَا تُقَدِّمُوا۟ بَيْنَ يَدَىِ ٱللَّهِ"
+  },
+  {
+    "quarter": 207,
+    "juz": 26,
+    "hizb": 52,
+    "quarterInHizb": 3,
+    "surahNumber": 49,
+    "surahName": "الحجرات",
+    "ayahNumber": 14,
+    "ayahText": "۞ قَالَتِ ٱلْأَعْرَابُ ءَامَنَّا ۖ قُل لَّمْ تُؤْمِنُوا۟"
+  },
+  {
+    "quarter": 208,
+    "juz": 26,
+    "hizb": 52,
+    "quarterInHizb": 4,
+    "surahNumber": 50,
+    "surahName": "ق",
+    "ayahNumber": 27,
+    "ayahText": "۞ قَالَ قَرِينُهُۥ رَبَّنَا مَآ أَطْغَيْتُهُۥ وَلَٰكِن كَانَ"
+  },
+  {
+    "quarter": 209,
+    "juz": 27,
+    "hizb": 53,
+    "quarterInHizb": 1,
+    "surahNumber": 51,
+    "surahName": "الذاريات",
+    "ayahNumber": 31,
+    "ayahText": "۞ قَالَ فَمَا خَطْبُكُمْ أَيُّهَا ٱلْمُرْسَلُونَ"
+  },
+  {
+    "quarter": 210,
+    "juz": 27,
+    "hizb": 53,
+    "quarterInHizb": 2,
+    "surahNumber": 52,
+    "surahName": "الطور",
+    "ayahNumber": 24,
+    "ayahText": "۞ وَيَطُوفُ عَلَيْهِمْ غِلْمَانٌۭ لَّهُمْ كَأَنَّهُمْ لُؤْلُؤٌۭ مَّكْنُونٌۭ"
+  },
+  {
+    "quarter": 211,
+    "juz": 27,
+    "hizb": 53,
+    "quarterInHizb": 3,
+    "surahNumber": 53,
+    "surahName": "النجم",
+    "ayahNumber": 26,
+    "ayahText": "۞ وَكَم مِّن مَّلَكٍۢ فِى ٱلسَّمَٰوَٰتِ لَا تُغْنِى"
+  },
+  {
+    "quarter": 212,
+    "juz": 27,
+    "hizb": 53,
+    "quarterInHizb": 4,
+    "surahNumber": 54,
+    "surahName": "القمر",
+    "ayahNumber": 9,
+    "ayahText": "۞ كَذَّبَتْ قَبْلَهُمْ قَوْمُ نُوحٍۢ فَكَذَّبُوا۟ عَبْدَنَا وَقَالُوا۟"
+  },
+  {
+    "quarter": 213,
+    "juz": 27,
+    "hizb": 54,
+    "quarterInHizb": 1,
+    "surahNumber": 55,
+    "surahName": "الرحمن",
+    "ayahNumber": 1,
+    "ayahText": "ٱلرَّحْمَٰنُ"
+  },
+  {
+    "quarter": 214,
+    "juz": 27,
+    "hizb": 54,
+    "quarterInHizb": 2,
+    "surahNumber": 56,
+    "surahName": "الواقعة",
+    "ayahNumber": 1,
+    "ayahText": "إِذَا وَقَعَتِ ٱلْوَاقِعَةُ"
+  },
+  {
+    "quarter": 215,
+    "juz": 27,
+    "hizb": 54,
+    "quarterInHizb": 3,
+    "surahNumber": 56,
+    "surahName": "الواقعة",
+    "ayahNumber": 75,
+    "ayahText": "۞ فَلَآ أُقْسِمُ بِمَوَٰقِعِ ٱلنُّجُومِ"
+  },
+  {
+    "quarter": 216,
+    "juz": 27,
+    "hizb": 54,
+    "quarterInHizb": 4,
+    "surahNumber": 57,
+    "surahName": "الحديد",
+    "ayahNumber": 16,
+    "ayahText": "۞ أَلَمْ يَأْنِ لِلَّذِينَ ءَامَنُوٓا۟ أَن تَخْشَعَ قُلُوبُهُمْ"
+  },
+  {
+    "quarter": 217,
+    "juz": 28,
+    "hizb": 55,
+    "quarterInHizb": 1,
+    "surahNumber": 58,
+    "surahName": "المجادلة",
+    "ayahNumber": 1,
+    "ayahText": "قَدْ سَمِعَ ٱللَّهُ قَوْلَ ٱلَّتِى تُجَٰدِلُكَ فِى زَوْجِهَا"
+  },
+  {
+    "quarter": 218,
+    "juz": 28,
+    "hizb": 55,
+    "quarterInHizb": 2,
+    "surahNumber": 58,
+    "surahName": "المجادلة",
+    "ayahNumber": 14,
+    "ayahText": "۞ أَلَمْ تَرَ إِلَى ٱلَّذِينَ تَوَلَّوْا۟ قَوْمًا غَضِبَ"
+  },
+  {
+    "quarter": 219,
+    "juz": 28,
+    "hizb": 55,
+    "quarterInHizb": 3,
+    "surahNumber": 59,
+    "surahName": "الحشر",
+    "ayahNumber": 11,
+    "ayahText": "۞ أَلَمْ تَرَ إِلَى ٱلَّذِينَ نَافَقُوا۟ يَقُولُونَ لِإِخْوَٰنِهِمُ"
+  },
+  {
+    "quarter": 220,
+    "juz": 28,
+    "hizb": 55,
+    "quarterInHizb": 4,
+    "surahNumber": 60,
+    "surahName": "الممتحنة",
+    "ayahNumber": 7,
+    "ayahText": "۞ عَسَى ٱللَّهُ أَن يَجْعَلَ بَيْنَكُمْ وَبَيْنَ ٱلَّذِينَ"
+  },
+  {
+    "quarter": 221,
+    "juz": 28,
+    "hizb": 56,
+    "quarterInHizb": 1,
+    "surahNumber": 62,
+    "surahName": "الجمعة",
+    "ayahNumber": 1,
+    "ayahText": "يُسَبِّحُ لِلَّهِ مَا فِى ٱلسَّمَٰوَٰتِ وَمَا فِى ٱلْأَرْضِ"
+  },
+  {
+    "quarter": 222,
+    "juz": 28,
+    "hizb": 56,
+    "quarterInHizb": 2,
+    "surahNumber": 63,
+    "surahName": "المنافقون",
+    "ayahNumber": 4,
+    "ayahText": "۞ وَإِذَا رَأَيْتَهُمْ تُعْجِبُكَ أَجْسَامُهُمْ ۖ وَإِن يَقُولُوا۟"
+  },
+  {
+    "quarter": 223,
+    "juz": 28,
+    "hizb": 56,
+    "quarterInHizb": 3,
+    "surahNumber": 65,
+    "surahName": "الطلاق",
+    "ayahNumber": 1,
+    "ayahText": "يَٰٓأَيُّهَا ٱلنَّبِىُّ إِذَا طَلَّقْتُمُ ٱلنِّسَآءَ فَطَلِّقُوهُنَّ لِعِدَّتِهِنَّ وَأَحْصُوا۟"
+  },
+  {
+    "quarter": 224,
+    "juz": 28,
+    "hizb": 56,
+    "quarterInHizb": 4,
+    "surahNumber": 66,
+    "surahName": "التحريم",
+    "ayahNumber": 1,
+    "ayahText": "يَٰٓأَيُّهَا ٱلنَّبِىُّ لِمَ تُحَرِّمُ مَآ أَحَلَّ ٱللَّهُ لَكَ"
+  },
+  {
+    "quarter": 225,
+    "juz": 29,
+    "hizb": 57,
+    "quarterInHizb": 1,
+    "surahNumber": 67,
+    "surahName": "الملك",
+    "ayahNumber": 1,
+    "ayahText": "تَبَٰرَكَ ٱلَّذِى بِيَدِهِ ٱلْمُلْكُ وَهُوَ عَلَىٰ كُلِّ شَىْءٍۢ"
+  },
+  {
+    "quarter": 226,
+    "juz": 29,
+    "hizb": 57,
+    "quarterInHizb": 2,
+    "surahNumber": 68,
+    "surahName": "القلم",
+    "ayahNumber": 1,
+    "ayahText": "نٓ ۚ وَٱلْقَلَمِ وَمَا يَسْطُرُونَ"
+  },
+  {
+    "quarter": 227,
+    "juz": 29,
+    "hizb": 57,
+    "quarterInHizb": 3,
+    "surahNumber": 69,
+    "surahName": "الحاقة",
+    "ayahNumber": 1,
+    "ayahText": "ٱلْحَآقَّةُ"
+  },
+  {
+    "quarter": 228,
+    "juz": 29,
+    "hizb": 57,
+    "quarterInHizb": 4,
+    "surahNumber": 70,
+    "surahName": "المعارج",
+    "ayahNumber": 19,
+    "ayahText": "۞ إِنَّ ٱلْإِنسَٰنَ خُلِقَ هَلُوعًا"
+  },
+  {
+    "quarter": 229,
+    "juz": 29,
+    "hizb": 58,
+    "quarterInHizb": 1,
+    "surahNumber": 72,
+    "surahName": "الجن",
+    "ayahNumber": 1,
+    "ayahText": "قُلْ أُوحِىَ إِلَىَّ أَنَّهُ ٱسْتَمَعَ نَفَرٌۭ مِّنَ ٱلْجِنِّ"
+  },
+  {
+    "quarter": 230,
+    "juz": 29,
+    "hizb": 58,
+    "quarterInHizb": 2,
+    "surahNumber": 73,
+    "surahName": "المزمل",
+    "ayahNumber": 20,
+    "ayahText": "۞ إِنَّ رَبَّكَ يَعْلَمُ أَنَّكَ تَقُومُ أَدْنَىٰ مِن"
+  },
+  {
+    "quarter": 231,
+    "juz": 29,
+    "hizb": 58,
+    "quarterInHizb": 3,
+    "surahNumber": 75,
+    "surahName": "القيامة",
+    "ayahNumber": 1,
+    "ayahText": "لَآ أُقْسِمُ بِيَوْمِ ٱلْقِيَٰمَةِ"
+  },
+  {
+    "quarter": 232,
+    "juz": 29,
+    "hizb": 58,
+    "quarterInHizb": 4,
+    "surahNumber": 76,
+    "surahName": "الإنسان",
+    "ayahNumber": 19,
+    "ayahText": "۞ وَيَطُوفُ عَلَيْهِمْ وِلْدَٰنٌۭ مُّخَلَّدُونَ إِذَا رَأَيْتَهُمْ حَسِبْتَهُمْ"
+  },
+  {
+    "quarter": 233,
+    "juz": 30,
+    "hizb": 59,
+    "quarterInHizb": 1,
+    "surahNumber": 78,
+    "surahName": "النبأ",
+    "ayahNumber": 1,
+    "ayahText": "عَمَّ يَتَسَآءَلُونَ"
+  },
+  {
+    "quarter": 234,
+    "juz": 30,
+    "hizb": 59,
+    "quarterInHizb": 2,
+    "surahNumber": 80,
+    "surahName": "عبس",
+    "ayahNumber": 1,
+    "ayahText": "عَبَسَ وَتَوَلَّىٰٓ"
+  },
+  {
+    "quarter": 235,
+    "juz": 30,
+    "hizb": 59,
+    "quarterInHizb": 3,
+    "surahNumber": 82,
+    "surahName": "الانفطار",
+    "ayahNumber": 1,
+    "ayahText": "إِذَا ٱلسَّمَآءُ ٱنفَطَرَتْ"
+  },
+  {
+    "quarter": 236,
+    "juz": 30,
+    "hizb": 59,
+    "quarterInHizb": 4,
+    "surahNumber": 84,
+    "surahName": "الانشقاق",
+    "ayahNumber": 1,
+    "ayahText": "إِذَا ٱلسَّمَآءُ ٱنشَقَّتْ"
+  },
+  {
+    "quarter": 237,
+    "juz": 30,
+    "hizb": 60,
+    "quarterInHizb": 1,
+    "surahNumber": 87,
+    "surahName": "الأعلى",
+    "ayahNumber": 1,
+    "ayahText": "سَبِّحِ ٱسْمَ رَبِّكَ ٱلْأَعْلَى"
+  },
+  {
+    "quarter": 238,
+    "juz": 30,
+    "hizb": 60,
+    "quarterInHizb": 2,
+    "surahNumber": 90,
+    "surahName": "البلد",
+    "ayahNumber": 1,
+    "ayahText": "لَآ أُقْسِمُ بِهَٰذَا ٱلْبَلَدِ"
+  },
+  {
+    "quarter": 239,
+    "juz": 30,
+    "hizb": 60,
+    "quarterInHizb": 3,
+    "surahNumber": 94,
+    "surahName": "الشرح",
+    "ayahNumber": 1,
+    "ayahText": "أَلَمْ نَشْرَحْ لَكَ صَدْرَكَ"
+  },
+  {
+    "quarter": 240,
+    "juz": 30,
+    "hizb": 60,
+    "quarterInHizb": 4,
+    "surahNumber": 100,
+    "surahName": "العاديات",
+    "ayahNumber": 9,
+    "ayahText": "۞ أَفَلَا يَعْلَمُ إِذَا بُعْثِرَ مَا فِى ٱلْقُبُورِ"
+  }
+]

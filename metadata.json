@@ -1,0 +1,8 @@
+{
+  "name": " متقن  للنساء - حفظ ومراجعة القرآن الكريم",
+  "description": "تطبيق ويب متكامل لمساعدة الأخوات المسلمات على الالتزام اليومي بحفظ ومراجعة القرآن الكريم جماعيًا بالتسميع المتبادل والمراجعة اليومية.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

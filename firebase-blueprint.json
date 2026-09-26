@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "بيانات الأعضاء والمشرفين في تطبيق متقن",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "phone": { "type": "string", "maxLength": 20 },
+        "role": { "type": "string", "enum": ["member", "admin"] },
+        "is_active": { "type": "boolean" },
+        "created_at": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "name", "phone", "role", "is_active", "created_at"]
+    },
+    "GroupSettings": {
+      "title": "GroupSettings",
+      "description": "إعدادات خطة الحفظ والمراجعة للمجموعة",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "start_date": { "type": "string", "maxLength": 20 },
+        "total_quarters": { "type": "number" },
+        "review_window": { "type": "number" },
+        "max_errors_allowed": { "type": "number" },
+        "current_cycle_number": { "type": "number" }
+      },
+      "required": ["id", "start_date", "total_quarters", "review_window", "max_errors_allowed", "current_cycle_number"]
+    },
+    "RestDay": {
+      "title": "RestDay",
+      "description": "أيام الاستدراك والراحة التي يضيفها المشرف",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 20 },
+        "note": { "type": "string", "maxLength": 250 },
+        "added_by_admin_id": { "type": "string", "maxLength": 128 },
+        "created_at": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "date", "note", "added_by_admin_id", "created_at"]
+    },
+    "RecitationLog": {
+      "title": "RecitationLog",
+      "description": "سجلات التسميع المتبادل بين الأعضاء",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "reciter_id": { "type": "string", "maxLength": 128 },
+        "reciter_name": { "type": "string", "maxLength": 100 },
+        "listener_id": { "type": "string", "maxLength": 128 },
+        "listener_name": { "type": "string", "maxLength": 100 },
+        "quarter_number": { "type": "number" },
+        "cycle_number": { "type": "number" },
+        "date": { "type": "string", "maxLength": 20 },
+        "error_count": { "type": "number" },
+        "status": { "type": "string", "enum": ["accepted", "rejected"] },
+        "notes": { "type": "string", "maxLength": 500 },
+        "created_at": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "reciter_id", "listener_id", "quarter_number", "cycle_number", "date", "error_count", "status", "created_at"]
+    },
+    "RevisionLog": {
+      "title": "RevisionLog",
+      "description": "سجلات المراجعة الفردية اليومية للأعضاء",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "member_id": { "type": "string", "maxLength": 128 },
+        "member_name": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 20 },
+        "cycle_number": { "type": "number" },
+        "review_start_quarter": { "type": "number" },
+        "review_end_quarter": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 500 },
+        "created_at": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "member_id", "date", "cycle_number", "review_start_quarter", "review_end_quarter", "created_at"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "مجموعة الأعضاء والمشرفين"
+    },
+    "/settings/{settingId}": {
+      "schema": "GroupSettings",
+      "description": "إعدادات المجموعة"
+    },
+    "/rest_days/{restDayId}": {
+      "schema": "RestDay",
+      "description": "أيام الاستدراك والراحة"
+    },
+    "/recitations/{recitationId}": {
+      "schema": "RecitationLog",
+      "description": "سجلات التسميع المتبادل"
+    },
+    "/revisions/{revisionId}": {
+      "schema": "RevisionLog",
+      "description": "سجلات المراجعة اليومية"
+    }
+  }
+}
