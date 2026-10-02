@@ -7,7 +7,7 @@ export interface User {
   role: UserRole;
   is_active: boolean;
   created_at: string;
-  firebase_uid?: string;
+  auth_uid?: string;
 }
 
 export interface GroupSettings {

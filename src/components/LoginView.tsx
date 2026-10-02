@@ -11,22 +11,34 @@ export const LoginView: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!phone.trim() || !password.trim()) {
-      setErrorMsg('يرجى إدخال رقم الهاتف وكلمة المرور');
-      return;
-    }
-    setErrorMsg('');
-    setLoading(true);
-    try {
-      await login(phone.trim(), password.trim());
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'فشل تسجيل الدخول. تحقق من بياناتك.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  e.preventDefault();
 
+  if (!phone.trim() || !password.trim()) {
+    setErrorMsg('يرجى إدخال رقم الهاتف وكلمة المرور');
+    return;
+  }
+
+  setErrorMsg('');
+  setLoading(true);
+
+  try {
+    const result = await login(
+      phone.trim(),
+      password.trim()
+    );
+
+    if (result.error) {
+      setErrorMsg(result.error);
+    }
+  } catch (err: any) {
+    setErrorMsg(
+      err?.message || 'فشل تسجيل الدخول. تحقق من بياناتك.'
+    );
+  } finally {
+    setLoading(false);
+  }
+  };
+  
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-50/70 via-rose-50/30 to-stone-100 flex flex-col justify-center items-center p-4 selection:bg-pink-200">
       <div className="w-full max-w-md space-y-6">
