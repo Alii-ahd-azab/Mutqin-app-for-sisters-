@@ -45,7 +45,7 @@ export const LoginView: React.FC = () => {
         {/* App Logo & Quranic Verse */}
         <div className="text-center space-y-3">
           <div className="inline-flex justify-center">
-            <SistersLogo size="xl" className="shadow-md ring-4 ring-pink-100/80" />
+            <SistersLogo size="xl" />
           </div>
           <div>
             <h1 className="text-3xl font-bold font-quran text-stone-900 tracking-tight">
