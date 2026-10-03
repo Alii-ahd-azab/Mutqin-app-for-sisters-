@@ -38,6 +38,7 @@ export function sanitizeThoughtHtml(rawHtml: string): string {
       'em',
       'u',
       'span',
+      'font',
       'p',
       'div',
       'br',
@@ -48,7 +49,7 @@ export function sanitizeThoughtHtml(rawHtml: string): string {
       'h3',
       'h4',
     ],
-    ALLOWED_ATTR: ['style', 'class', 'dir'],
+    ALLOWED_ATTR: ['style', 'class', 'dir','color','size',],
     FORBID_TAGS: [
       'script',
       'iframe',

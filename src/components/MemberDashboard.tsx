@@ -606,7 +606,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
               <div className="text-xs bg-white p-3 rounded-2xl border border-stone-200/80 space-y-2">
                 <div className="space-y-1">
                   <div className="flex items-baseline gap-1.5 flex-wrap">
-                    <span className="font-bold text-emerald-800 shrink-0">ابدأ من:</span>
+                    <span className="font-bold text-emerald-800 shrink-0">ابدأي من:</span>
                     <span className="font-bold text-stone-900">{currentRevisionItem.bounds.start.label}</span>
                     <span className="font-quran text-xs sm:text-sm text-emerald-900 font-medium">
                       ﴿ {currentRevisionItem.bounds.start.ayahText}... ﴾
@@ -615,9 +615,9 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
                 </div>
                 <div className="border-t border-stone-100 pt-2 space-y-1">
                   <div className="flex items-baseline gap-1.5 flex-wrap">
-                    <span className="font-bold text-rose-700 shrink-0">توقف عند:</span>
+                    <span className="font-bold text-rose-700 shrink-0">توقفي عند:</span>
                     <span className="font-bold text-stone-900">{currentRevisionItem.bounds.stop.label}</span>
-                    <span className="font-quran text-xs sm:text-sm text-stone-700 font-medium">
+                    <span className="font-quran text-xs sm:text-sm text-rose-700 font-medium">
                       ﴿ {currentRevisionItem.bounds.stop.ayahText}{currentRevisionItem.bounds.stop.isEndNotice ? '' : '...'} ﴾
                     </span>
                   </div>
@@ -765,9 +765,9 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
               <div className="text-xs bg-white p-3 rounded-2xl border border-stone-200/80 space-y-2">
                 <div className="space-y-1">
                   <div className="flex items-baseline gap-1.5 flex-wrap">
-                    <span className="font-bold text-rose-700 shrink-0">ابدأي من:</span>
+                    <span className="font-bold text-emerald-800 shrink-0">ابدأي من:</span>
                     <span className="font-bold text-stone-900">{recitationBounds.start.label}</span>
-                    <span className="font-quran text-xs sm:text-sm text-pink-900 font-medium">
+                    <span className="font-quran text-xs sm:text-sm text-emerald-800 font-medium">
                       ﴿ {recitationBounds.start.ayahText}... ﴾
                     </span>
                   </div>
@@ -776,7 +776,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
                   <div className="flex items-baseline gap-1.5 flex-wrap">
                     <span className="font-bold text-rose-700 shrink-0">توقفي عند:</span>
                     <span className="font-bold text-stone-900">{recitationBounds.stop.label}</span>
-                    <span className="font-quran text-xs sm:text-sm text-stone-700 font-medium">
+                    <span className="font-quran text-xs sm:text-sm text-rose-700 font-medium">
                       ﴿ {recitationBounds.stop.ayahText}{recitationBounds.stop.isEndNotice ? '' : '...'} ﴾
                     </span>
                   </div>

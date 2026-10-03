@@ -393,6 +393,19 @@ Deno.serve(async (req) => {
           404,
         );
       }
+      if (
+  body.password !== undefined &&
+  body.password !== '' &&
+  existingProfile.role === 'admin'
+) {
+  return json(
+    {
+      error:
+        'لا يمكن للمشرف تغيير كلمة مرور مشرف آخر',
+    },
+    403,
+  );
+}
 
       const profileUpdate:
         Record<string, unknown> = {};

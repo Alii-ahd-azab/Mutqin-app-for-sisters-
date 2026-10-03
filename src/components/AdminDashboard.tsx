@@ -194,8 +194,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       const missedQuartersCount = quarterStatus.pastMissedQuartersCount;
       const missedRevisionDaysCount = revStatus.pastMissedRevisionDaysCount;
-      const isSeverelyBehindRecitation = missedQuartersCount > 3;
-      const isSeverelyBehindRevision = missedRevisionDaysCount > 3;
+      const isSeverelyBehindRecitation = missedQuartersCount >= 3;
+      const isSeverelyBehindRevision = missedRevisionDaysCount >= 3;
       const isSeverelyBehind = isSeverelyBehindRecitation || isSeverelyBehindRevision;
       const severeReasons: ('recitation' | 'revision')[] = [];
       if (isSeverelyBehindRecitation) severeReasons.push('recitation');
@@ -638,7 +638,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-stone-500 font-medium">مؤهلون للإقصاء</span>
-                  <span className="text-[10px] text-rose-700 font-bold bg-rose-100/80 px-1.5 py-0.2 rounded-sm">&gt; 3 فائت</span>
+                  <span className="text-[10px] text-rose-700 font-bold bg-rose-100/80 px-1.5 py-0.2 rounded-sm">3+ فائت</span>
                 </div>
                 <div className={`text-2xl font-bold mt-0.5 ${
                   severelyBehindMembersCount > 0 ? 'text-rose-700' : 'text-stone-800'
@@ -974,7 +974,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               </div>
                             )}
                           </td>
-                          <td className="py-3 px-4 font-mono text-stone-600">{u.phone}</td>
+                          <td className="py-3 px-4 font-mono text-stone-600">
+  {u.role === 'admin' ? '—' : u.phone}
+</td>
                           <td className="py-3 px-4">
                             {u.role === 'admin' ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-bold text-[10px] bg-amber-50 text-amber-900 border border-amber-200">
@@ -1022,41 +1024,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 </button>
                               )}
 
-                              {/* Reset password */}
-                              {isEditingPw ? (
-                                <div className="flex items-center gap-1">
-                                  <input
-                                    type="text"
-                                    placeholder="كلمة مرور جديدة..."
-                                    value={newPasswordInput}
-                                    onChange={(e) => setNewPasswordInput(e.target.value)}
-                                    className="w-28 px-2 py-1 text-[11px] border border-stone-300 rounded-lg outline-hidden"
-                                  />
-                                  <button
-                                    onClick={() => handleSavePassword(u.id)}
-                                    className="px-2 py-1 rounded-lg bg-emerald-700 text-white text-[10px] font-bold"
-                                  >
-                                    حفظ
-                                  </button>
-                                  <button
-                                    onClick={() => setEditingPasswordUserId(null)}
-                                    className="px-1.5 py-1 rounded-lg bg-stone-200 text-stone-600 text-[10px]"
-                                  >
-                                    إلغاء
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    setEditingPasswordUserId(u.id);
-                                    setNewPasswordInput('');
-                                  }}
-                                  className="px-2 py-1 rounded-lg text-[11px] bg-stone-100 hover:bg-stone-200 text-stone-600 flex items-center gap-1 transition"
-                                  title="تغيير كلمة المرور"
-                                >
-                                  <Key className="w-3 h-3" />
-                                  <span>كلمة المرور</span>
-                                </button>
+                              {/* Reset password — members only */}
+                              {u.role === 'member' && (
+                                <>
+                                  {isEditingPw ? (
+                                    <div className="flex items-center gap-1">
+                                      <input
+                                        type="text"
+                                        placeholder="كلمة مرور جديدة..."
+                                        value={newPasswordInput}
+                                        onChange={(e) => setNewPasswordInput(e.target.value)}
+                                        className="w-28 px-2 py-1 text-[11px] border border-stone-300 rounded-lg outline-hidden"
+                                      />
+                                      <button
+                                        onClick={() => handleSavePassword(u.id)}
+                                        className="px-2 py-1 rounded-lg bg-emerald-700 text-white text-[10px] font-bold"
+                                      >
+                                        حفظ
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingPasswordUserId(null);
+                                          setNewPasswordInput('');
+                                        }}
+                                        className="px-1.5 py-1 rounded-lg bg-stone-200 text-stone-600 text-[10px]"
+                                      >
+                                        إلغاء
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        setEditingPasswordUserId(u.id);
+                                        setNewPasswordInput('');
+                                      }}
+                                      className="px-2 py-1 rounded-lg text-[11px] bg-stone-100 hover:bg-stone-200 text-stone-600 flex items-center gap-1 transition"
+                                      title="تغيير كلمة مرور العضو"
+                                    >
+                                      <Key className="w-3 h-3" />
+                                      <span>كلمة المرور</span>
+                                    </button>
+                                  )}
+                                </>
                               )}
                             </div>
                           </td>
@@ -1811,7 +1820,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                   {s.isSeverelyBehind && (
                     <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-200/80 text-rose-900">
-                      تأخر شديد (&gt; 3)
+                      تأخر شديد (3+)
                     </span>
                   )}
                 </div>
