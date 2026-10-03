@@ -1223,7 +1223,7 @@ export const api = {
      */
     if (
       payload.password ||
-      payload.phone !== undefined
+      payload.phone !== undefined 
     ) {
       const {
         data,

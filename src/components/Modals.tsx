@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { User, CycleInfo, RecitationLog } from '../types';
 import { getQuarterInfo, getQuarterBounds, getRangeBounds } from '../data/quranData';
 import { calculateMemberRequiredQuarter } from '../lib/calculations';
@@ -473,8 +474,8 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
       setErrorMsg('يرجى إدخال كلمة المرور الجديدة');
       return;
     }
-    if (newPassword.length < 4) {
-      setErrorMsg('كلمة المرور يجب ألا تقل عن 4 خانات');
+    if (newPassword.length < 6) {
+      setErrorMsg('كلمة المرور يجب أن تكون 6 أحرف أو أكثر');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -496,8 +497,8 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-900/60 backdrop-blur-xs flex min-h-full items-center justify-center p-4 sm:p-6 animate-in fade-in duration-150">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-stone-900/60 backdrop-blur-xs flex min-h-full items-center justify-center p-4 sm:p-6 animate-in fade-in duration-150">
       <div className="bg-white rounded-2xl max-w-sm w-full p-5 sm:p-6 shadow-2xl border border-stone-200 my-auto animate-in zoom-in-95 duration-150 relative max-h-[calc(100vh-2rem)] overflow-y-auto">
         <div className="flex items-center justify-between pb-3.5 border-b border-stone-100">
           <div className="flex items-center gap-2.5">
@@ -577,7 +578,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
-                placeholder="أدخل كلمة المرور الجديدة (4 خانات على الأقل)"
+                placeholder="أدخل كلمة المرور الجديدة (6 أحرف على الأقل)"
                 className="w-full h-10 px-3.5 pl-10 text-xs sm:text-sm rounded-xl border border-stone-300 bg-stone-50/70 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 outline-hidden transition text-stone-900 placeholder:text-stone-400"
               />
               <button
@@ -628,6 +629,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
