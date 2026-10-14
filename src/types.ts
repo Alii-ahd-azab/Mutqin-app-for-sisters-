@@ -37,6 +37,18 @@ export interface AdminAccount {
 
 export type AdminType = 'master' | 'batch';
 
+// Changes an admin may request for an existing account.
+// Always applied server-side by the admin-users Edge Function.
+export interface AdminAccountUpdate {
+  name?: string;
+  phone?: string;
+  password?: string;
+  role?: UserRole; // changing member <-> admin is rejected by the server
+  is_active?: boolean; // false = exclude, true = reactivate
+  is_master_admin?: boolean; // master admins only
+  batch_ids?: string[]; // batch-admin assignments, master admins only
+}
+
 export interface NewAccountPayload {
   name: string;
   phone: string;

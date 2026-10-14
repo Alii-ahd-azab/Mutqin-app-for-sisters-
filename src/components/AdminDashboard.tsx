@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Batch, User, GroupSettings, NewAccountPayload, RestDay, RecitationLog, RevisionLog, CycleInfo } from '../types';
+import { AdminAccountUpdate, Batch, User, GroupSettings, NewAccountPayload, RestDay, RecitationLog, RevisionLog, CycleInfo } from '../types';
 import { getQuarterInfo } from '../data/quranData';
 import {
   calculateMemberRequiredQuarter,
@@ -58,10 +58,9 @@ interface AdminDashboardProps {
   recitations: RecitationLog[];
   revisions: RevisionLog[];
   onAddMember: (payload: NewAccountPayload) => Promise<void>;
-  onUpdateMember: (
-    id: string,
-    payload: { is_active?: boolean; password?: string; name?: string; phone?: string }
-  ) => Promise<void>;
+  onUpdateMember: (id: string, payload: AdminAccountUpdate) => Promise<void>;
+  // Reload the batch data after admin permissions change
+  onAccountsChanged: () => void;
   onAddRestDay: (payload: { date: string; note: string }) => Promise<void>;
   onDeleteRestDay: (id: string) => Promise<void>;
   onPause: () => Promise<void>;
@@ -88,6 +87,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   revisions,
   onAddMember,
   onUpdateMember,
+  onAccountsChanged,
   onAddRestDay,
   onDeleteRestDay,
   onPause,
@@ -1669,7 +1669,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* Section: Admin accounts & batch permissions (master admin only) */}
           {isMasterAdmin && (
-            <AdminAccountsManager batches={accessibleBatches} currentUserId={currentUser.id} />
+            <AdminAccountsManager
+              batches={accessibleBatches}
+              currentUserId={currentUser.id}
+              onChanged={onAccountsChanged}
+            />
           )}
 
           {/* Section 4: Factory Reset */}

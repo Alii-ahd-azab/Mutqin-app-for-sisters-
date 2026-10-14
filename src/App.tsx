@@ -7,6 +7,7 @@ import { LoginView } from './components/LoginView';
 import { BatchSelector } from './components/BatchSelector';
 import { api } from './api/client';
 import {
+  AdminAccountUpdate,
   Batch,
   CycleInfo,
   GroupSettings,
@@ -183,10 +184,7 @@ const MainApp: React.FC = () => {
     await loadAppData();
   };
 
-  const handleUpdateMember = async (
-    id: string,
-    payload: { is_active?: boolean; password?: string; name?: string; phone?: string }
-  ) => {
+  const handleUpdateMember = async (id: string, payload: AdminAccountUpdate) => {
     await api.adminUpdateMember(id, payload);
     await loadAppData();
   };
@@ -315,6 +313,7 @@ const MainApp: React.FC = () => {
               revisions={revisions}
               onAddMember={handleAddMember}
               onUpdateMember={handleUpdateMember}
+              onAccountsChanged={loadAppData}
               onAddRestDay={handleAddRestDay}
               onDeleteRestDay={handleDeleteRestDay}
               onPause={handlePause}

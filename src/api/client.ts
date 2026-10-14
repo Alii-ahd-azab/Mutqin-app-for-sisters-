@@ -2,6 +2,7 @@ import {
   User,
   Batch,
   AdminAccount,
+  AdminAccountUpdate,
   NewAccountPayload,
   BatchBootstrap,
   GroupSettings,
@@ -1316,12 +1317,7 @@ export const api = {
 
   async adminUpdateMember(
     id: string,
-    payload: {
-      name?: string;
-      phone?: string;
-      password?: string;
-      is_active?: boolean;
-    }
+    payload: AdminAccountUpdate
   ): Promise<{
     user: User;
     message: string;
@@ -1340,11 +1336,23 @@ export const api = {
       );
     }
 
+    if (
+      payload.batch_ids !== undefined &&
+      payload.batch_ids.length === 0
+    ) {
+      throw new Error(
+        'يرجى اختيار دفعة واحدة على الأقل'
+      );
+    }
+
     /*
-     * All account changes go through the
-     * Edge Function, which verifies that
-     * the caller manages this account's
-     * batch before touching anything.
+     * ALL account changes (name, phone,
+     * password, role, active/excluded,
+     * master flag, batch assignments) go
+     * through the Edge Function, which
+     * verifies that the caller manages
+     * this account's batch. The browser
+     * has no UPDATE access to profiles.
      */
     return invokeFunction(
       'admin-users',

@@ -7,6 +7,7 @@ import { Shield, Crown, Layers, RefreshCw, X, Pencil } from 'lucide-react';
 interface AdminAccountsManagerProps {
   batches: Batch[];
   currentUserId: string;
+  onChanged: () => void;
 }
 
 // Master-admin only: lists every admin account and lets the master
@@ -14,6 +15,7 @@ interface AdminAccountsManagerProps {
 export const AdminAccountsManager: React.FC<AdminAccountsManagerProps> = ({
   batches,
   currentUserId,
+  onChanged,
 }) => {
   const [admins, setAdmins] = useState<AdminAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,9 +59,10 @@ export const AdminAccountsManager: React.FC<AdminAccountsManagerProps> = ({
     setSaving(true);
     setEditError('');
     try {
-      await api.adminSetAdminBatches(editing.user.id, editBatchIds);
+      await api.adminUpdateMember(editing.user.id, { batch_ids: editBatchIds });
       setEditing(null);
       await loadAdmins();
+      onChanged();
     } catch (err: any) {
       setEditError(err?.message || 'تعذر حفظ الصلاحيات');
     } finally {

@@ -588,6 +588,132 @@ Deno.serve(async (req) => {
       }
 
       /*
+       * Admin permissions: master admin flag
+       * and batch assignments. Only a master
+       * admin may change these, so a batch
+       * admin can never promote anyone (or
+       * themselves) to master admin.
+       */
+      const wantsMasterChange =
+        body.is_master_admin !== undefined &&
+        Boolean(body.is_master_admin) !==
+          existingProfile.is_master_admin;
+
+      const wantsBatchChange =
+        body.batch_ids !== undefined;
+
+      let nextIsMaster =
+        existingProfile.is_master_admin;
+
+      let adminBatchIds: string[] | null =
+        null;
+
+      if (
+        wantsMasterChange ||
+        wantsBatchChange
+      ) {
+        requireMaster(caller);
+
+        if (existingProfile.role !== 'admin') {
+          return json(
+            {
+              error:
+                'صلاحيات المشرفات متاحة لحسابات المشرفات فقط',
+            },
+            400,
+          );
+        }
+      }
+
+      if (wantsMasterChange) {
+        nextIsMaster =
+          Boolean(body.is_master_admin);
+
+        if (!nextIsMaster) {
+          if (userId === caller.id) {
+            return json(
+              {
+                error:
+                  'لا يمكنك إزالة صلاحية المشرفة العامة من حسابك الحالي',
+              },
+              400,
+            );
+          }
+
+          const {
+            count: otherMasters,
+            error: mastersError,
+          } = await admin
+            .from('profiles')
+            .select('id', {
+              count: 'exact',
+              head: true,
+            })
+            .eq('role', 'admin')
+            .eq('is_master_admin', true)
+            .eq('active', true)
+            .neq('id', userId);
+
+          if (mastersError) {
+            throw new HttpError(
+              mastersError.message,
+              500,
+            );
+          }
+
+          if (!otherMasters) {
+            return json(
+              {
+                error:
+                  'يجب أن تبقى مشرفة عامة نشطة واحدة على الأقل',
+              },
+              400,
+            );
+          }
+
+          /*
+           * A batch admin must manage at
+           * least one batch.
+           */
+          if (!wantsBatchChange) {
+            return json(
+              {
+                error:
+                  'يرجى اختيار الدفعات التي ستديرها المشرفة',
+              },
+              400,
+            );
+          }
+        }
+
+        /*
+         * Promotion to master removes the
+         * now-redundant batch assignments
+         * (handled by a database trigger).
+         */
+        profileUpdate.is_master_admin =
+          nextIsMaster;
+      }
+
+      if (wantsBatchChange) {
+        if (nextIsMaster) {
+          return json(
+            {
+              error:
+                'المشرفة العامة تدير جميع الدفعات ولا تحتاج إلى تعيين دفعات',
+            },
+            400,
+          );
+        }
+
+        adminBatchIds =
+          await validateBatchIds(
+            admin,
+            body.batch_ids,
+          );
+      }
+
+      /*
        * Update Auth email/password if
        * needed.
        */
@@ -636,6 +762,47 @@ Deno.serve(async (req) => {
             {
               error:
                 profileUpdateError.message,
+            },
+            400,
+          );
+        }
+      }
+
+      if (adminBatchIds) {
+        const {
+          error: setBatchesError,
+        } =
+          await admin.rpc(
+            'set_admin_batches',
+            {
+              p_user_id: userId,
+              p_batch_ids: adminBatchIds,
+              p_actor: caller.id,
+            },
+          );
+
+        if (setBatchesError) {
+          /*
+           * Undo a demotion so the account is
+           * never left as a batch admin with
+           * no batches.
+           */
+          if (
+            wantsMasterChange &&
+            !nextIsMaster
+          ) {
+            await admin
+              .from('profiles')
+              .update({
+                is_master_admin: true,
+              })
+              .eq('id', userId);
+          }
+
+          return json(
+            {
+              error:
+                setBatchesError.message,
             },
             400,
           );

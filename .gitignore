@@ -7,3 +7,5 @@ coverage/
 .env*
 !.env.example
 .env.local
+mutqin_sisters_backup_before_batches.dump
+mutqin_sisters_public_before_batches.sql
