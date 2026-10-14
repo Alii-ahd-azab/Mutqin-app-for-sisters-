@@ -9,10 +9,11 @@ import { api } from '../api/client';
 interface HeaderProps {
   cycleInfo?: CycleInfo | null;
   allUsers?: User[];
+  batchName?: string;
   onRefresh: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = () => {
+export const Header: React.FC<HeaderProps> = ({ batchName }) => {
   const { currentUser, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -68,7 +69,13 @@ export const Header: React.FC<HeaderProps> = () => {
                   <ChevronDown className="w-3 h-3 text-stone-400" />
                 </div>
                 <div className="text-pink-600/80">
-                  {currentUser.role === 'admin' ? 'مشرفة المقرأة' : 'أخت حافظة'}
+                  {currentUser.role === 'admin'
+                    ? currentUser.is_master_admin
+                      ? 'المشرفة العامة'
+                      : 'مشرفة المقرأة'
+                    : batchName
+                    ? `أخت حافظة • ${batchName}`
+                    : 'أخت حافظة'}
                 </div>
               </div>
             </button>
@@ -85,6 +92,11 @@ export const Header: React.FC<HeaderProps> = () => {
                     }`}>
                       {currentUser.role === 'admin' ? 'حساب المشرفة' : 'عضوة بالمقرأة'}
                     </span>
+                    {currentUser.role === 'member' && batchName && (
+                      <span className="inline-block text-[10px] px-2 py-0.5 rounded-full font-bold bg-rose-50 text-rose-700 border border-rose-100 mr-1">
+                        {batchName}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="pt-1 space-y-0.5">

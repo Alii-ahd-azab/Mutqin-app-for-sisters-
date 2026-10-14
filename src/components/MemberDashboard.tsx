@@ -52,6 +52,7 @@ interface RevisionDayItem {
 
 interface MemberDashboardProps {
   currentUser: User;
+  batchName?: string;
   cycleInfo: CycleInfo;
   settings?: GroupSettings;
   restDays?: RestDay[];
@@ -70,6 +71,7 @@ interface MemberDashboardProps {
 
 export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   currentUser,
+  batchName,
   cycleInfo,
   settings,
   restDays = [],
@@ -151,10 +153,14 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
     for (const dStr of userRevisionStatus.pastMissedDates) {
       const dayCycle = calculateCycleInfo(
         settings || {
+          id: '',
           start_date: cycleInfo.start_date,
           total_quarters: 240,
           review_window: 8,
           current_cycle_number: cycleInfo.current_cycle_number,
+          is_paused: cycleInfo.is_paused,
+          paused_at: cycleInfo.paused_at ?? null,
+          total_paused_days: cycleInfo.paused_days_count,
         },
         restDays,
         dStr
@@ -254,9 +260,17 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
       <div className="bg-gradient-to-l from-rose-900 via-rose-800 to-pink-900 text-white rounded-3xl p-6 sm:p-8 shadow-md border border-pink-400/20">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-pink-950/40 text-pink-100 text-xs font-semibold border border-pink-400/30">
-              <Sparkles className="w-3.5 h-3.5 text-pink-300 shrink-0" />
-              <span>أهلًا بكِ يا {currentUser.name.trim().split(/\s+/)[0]}، بارك الله في وقتكِ مع كتاب الله</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-pink-950/40 text-pink-100 text-xs font-semibold border border-pink-400/30">
+                <Sparkles className="w-3.5 h-3.5 text-pink-300 shrink-0" />
+                <span>أهلًا بكِ يا {currentUser.name.trim().split(/\s+/)[0]}، بارك الله في وقتكِ مع كتاب الله</span>
+              </div>
+              {batchName && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-bold border border-white/20">
+                  <Layers className="w-3.5 h-3.5 text-pink-200 shrink-0" />
+                  <span>{batchName}</span>
+                </span>
+              )}
             </div>
             {cycleInfo.has_started ? (
               <>

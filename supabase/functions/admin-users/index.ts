@@ -1,28 +1,32 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods':
-    'POST, OPTIONS',
+import {
+  corsHeaders,
+  json,
+  HttpError,
+  isUuid,
+  createAdminClient,
+  getAdminCaller,
+  canManageBatch,
+  requireMaster,
+  requireManagedBatch,
+  getMemberBatchId,
+  errorResponse,
+  type AdminCaller,
+} from '../_shared/auth.ts';
+
+type ProfileRow = {
+  id: string;
+  full_name: string;
+  phone: string;
+  role: 'member' | 'admin';
+  active: boolean;
+  created_at: string;
+  is_master_admin: boolean;
 };
 
-function json(
-  body: unknown,
-  status = 200,
-) {
-  return new Response(
-    JSON.stringify(body),
-    {
-      status,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-      },
-    },
-  );
-}
+const PROFILE_COLUMNS =
+  'id, full_name, phone, role, active, created_at, is_master_admin';
 
 function normalizePhone(phone: string) {
   return String(phone || '')
@@ -34,7 +38,7 @@ function phoneToEmail(phone: string) {
   return `${normalizePhone(phone)}@members.mutqin.local`;
 }
 
-function mapProfile(profile: any) {
+function mapProfile(profile: ProfileRow) {
   return {
     id: profile.id,
     name: profile.full_name,
@@ -43,7 +47,128 @@ function mapProfile(profile: any) {
     is_active: profile.active,
     created_at: profile.created_at,
     auth_uid: profile.id,
+    is_master_admin: !!profile.is_master_admin,
   };
+}
+
+/*
+ * Validates a list of batch IDs sent by a
+ * master admin: all must be UUIDs of
+ * existing, non-archived batches.
+ */
+async function validateBatchIds(
+  admin: SupabaseClient,
+  value: unknown,
+): Promise<string[]> {
+  if (!Array.isArray(value)) {
+    throw new HttpError(
+      'قائمة الدفعات غير صالحة',
+      400,
+    );
+  }
+
+  const ids = Array.from(new Set(value));
+
+  if (ids.length === 0) {
+    throw new HttpError(
+      'يرجى اختيار دفعة واحدة على الأقل',
+      400,
+    );
+  }
+
+  if (!ids.every(isUuid)) {
+    throw new HttpError(
+      'معرف دفعة غير صالح',
+      400,
+    );
+  }
+
+  const { data, error } = await admin
+    .from('batches')
+    .select('id')
+    .in('id', ids)
+    .is('archived_at', null);
+
+  if (error) {
+    throw new HttpError(error.message, 500);
+  }
+
+  if ((data || []).length !== ids.length) {
+    throw new HttpError(
+      'إحدى الدفعات المختارة غير موجودة',
+      400,
+    );
+  }
+
+  return ids as string[];
+}
+
+async function loadProfile(
+  admin: SupabaseClient,
+  userId: string,
+): Promise<ProfileRow> {
+  const { data, error } = await admin
+    .from('profiles')
+    .select(PROFILE_COLUMNS)
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new HttpError(error.message, 500);
+  }
+
+  if (!data) {
+    throw new HttpError(
+      'العضو غير موجود',
+      404,
+    );
+  }
+
+  return data as ProfileRow;
+}
+
+/*
+ * Who may manage an existing account:
+ * - members: master admins, or admins of
+ *   the member's batch
+ * - admins: master admins only (an admin
+ *   may also edit their own basic data)
+ */
+async function requireCanManageAccount(
+  admin: SupabaseClient,
+  caller: AdminCaller,
+  target: ProfileRow,
+) {
+  if (target.role === 'admin') {
+    if (
+      !caller.isMaster &&
+      target.id !== caller.id
+    ) {
+      throw new HttpError(
+        'إدارة حسابات المشرفات متاحة للمشرفة العامة فقط',
+        403,
+      );
+    }
+
+    return;
+  }
+
+  if (caller.isMaster) {
+    return;
+  }
+
+  const batchId =
+    await getMemberBatchId(admin, target.id);
+
+  if (
+    !batchId ||
+    !canManageBatch(caller, batchId)
+  ) {
+    throw new HttpError(
+      'لا تملكين صلاحية إدارة هذه العضوة',
+      403,
+    );
+  }
 }
 
 Deno.serve(async (req) => {
@@ -61,131 +186,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl =
-      Deno.env.get('SUPABASE_URL');
-
-    const serviceRoleKey =
-      Deno.env.get(
-        'SUPABASE_SERVICE_ROLE_KEY',
-      );
-
-    if (
-      !supabaseUrl ||
-      !serviceRoleKey
-    ) {
-      return json(
-        {
-          error:
-            'إعدادات الخادم غير مكتملة',
-        },
-        500,
-      );
-    }
+    const admin = createAdminClient();
 
     /*
-     * This client has server-side admin
-     * privileges. It never reaches the browser.
+     * Verify the caller's session and that
+     * they are an ACTIVE ADMIN.
      */
-    const admin = createClient(
-      supabaseUrl,
-      serviceRoleKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    );
-
-    /*
-     * Verify the caller's logged-in
-     * Supabase session.
-     */
-    const authHeader =
-      req.headers.get('Authorization');
-
-    if (
-      !authHeader ||
-      !authHeader.startsWith('Bearer ')
-    ) {
-      return json(
-        {
-          error:
-            'يجب تسجيل الدخول أولاً',
-        },
-        401,
-      );
-    }
-
-    const token =
-      authHeader.replace(
-        'Bearer ',
-        '',
-      );
-
-    const {
-      data: userData,
-      error: userError,
-    } =
-      await admin.auth.getUser(token);
-
-    if (
-      userError ||
-      !userData.user
-    ) {
-      return json(
-        {
-          error:
-            'جلسة تسجيل الدخول غير صالحة',
-        },
-        401,
-      );
-    }
-
     const caller =
-      userData.user;
-
-    /*
-     * Verify that the caller is an
-     * ACTIVE ADMIN in profiles.
-     */
-    const {
-      data: callerProfile,
-      error: callerProfileError,
-    } =
-      await admin
-        .from('profiles')
-        .select(
-          'id, role, active',
-        )
-        .eq('id', caller.id)
-        .single();
-
-    if (
-      callerProfileError ||
-      !callerProfile
-    ) {
-      return json(
-        {
-          error:
-            'تعذر العثور على حساب المشرف',
-        },
-        403,
-      );
-    }
-
-    if (
-      callerProfile.role !== 'admin' ||
-      callerProfile.active !== true
-    ) {
-      return json(
-        {
-          error:
-            'غير مصرح لك بتنفيذ هذا الإجراء',
-        },
-        403,
-      );
-    }
+      await getAdminCaller(req, admin);
 
     const body =
       await req.json();
@@ -233,6 +241,51 @@ Deno.serve(async (req) => {
         );
       }
 
+      if (password.length < 6) {
+        return json(
+          {
+            error:
+              'كلمة المرور يجب أن تكون 6 أحرف أو أكثر',
+          },
+          400,
+        );
+      }
+
+      /*
+       * Resolve and authorize the batch
+       * assignment BEFORE creating anything.
+       */
+      let memberBatchId: string | null = null;
+      let isMasterAdmin = false;
+      let adminBatchIds: string[] = [];
+
+      if (role === 'member') {
+        const batch =
+          await requireManagedBatch(
+            admin,
+            caller,
+            body.batch_id,
+          );
+
+        memberBatchId = batch.id;
+      } else {
+        /*
+         * Only a master admin may create
+         * admin accounts of any type.
+         */
+        requireMaster(caller);
+
+        isMasterAdmin =
+          body.is_master_admin === true;
+
+        if (!isMasterAdmin) {
+          adminBatchIds =
+            await validateBatchIds(
+              admin,
+              body.batch_ids,
+            );
+        }
+      }
 
       const email =
         phoneToEmail(phone);
@@ -283,44 +336,62 @@ Deno.serve(async (req) => {
         createdAuth.user.id;
 
       /*
-       * Create matching application
-       * profile.
+       * Create the profile and its batch
+       * membership(s) in ONE database
+       * transaction.
        */
       const {
-        data: profile,
         error: profileError,
       } =
-        await admin
+        await admin.rpc(
+          'create_profile_with_membership',
+          {
+            p_id: newUserId,
+            p_full_name: name,
+            p_phone: phone,
+            p_role: role,
+            p_is_master_admin: isMasterAdmin,
+            p_member_batch_id: memberBatchId,
+            p_admin_batch_ids: adminBatchIds,
+            p_actor: caller.id,
+          },
+        );
+
+      let profile: ProfileRow | null = null;
+
+      if (!profileError) {
+        const {
+          data: created,
+        } = await admin
           .from('profiles')
-          .insert({
-            id: newUserId,
-            full_name: name,
-            phone,
-            role,
-            active: true,
-          })
-          .select(
-            `
-            id,
-            full_name,
-            phone,
-            role,
-            active,
-            created_at
-            `,
-          )
-          .single();
+          .select(PROFILE_COLUMNS)
+          .eq('id', newUserId)
+          .maybeSingle();
+
+        profile = (created as ProfileRow) || null;
+      }
 
       if (
         profileError ||
         !profile
       ) {
         /*
-         * Roll back Auth user if profile
-         * creation failed.
+         * Roll back the Auth user so no
+         * orphan login is left behind.
          */
-        await admin.auth.admin
-          .deleteUser(newUserId);
+        const {
+          error: rollbackError,
+        } =
+          await admin.auth.admin
+            .deleteUser(newUserId);
+
+        if (rollbackError) {
+          console.error(
+            'admin-users rollback failed:',
+            newUserId,
+            rollbackError,
+          );
+        }
 
         return json(
           {
@@ -352,7 +423,7 @@ Deno.serve(async (req) => {
           body.user_id || '',
         );
 
-      if (!userId) {
+      if (!isUuid(userId)) {
         return json(
           {
             error:
@@ -362,50 +433,46 @@ Deno.serve(async (req) => {
         );
       }
 
-      const {
-        data: existingProfile,
-        error: existingError,
-      } =
-        await admin
-          .from('profiles')
-          .select(
-            `
-            id,
-            full_name,
-            phone,
-            role,
-            active,
-            created_at
-            `,
-          )
-          .eq('id', userId)
-          .single();
+      const existingProfile =
+        await loadProfile(admin, userId);
+
+      await requireCanManageAccount(
+        admin,
+        caller,
+        existingProfile,
+      );
 
       if (
-        existingError ||
-        !existingProfile
+        body.password !== undefined &&
+        body.password !== '' &&
+        existingProfile.role === 'admin'
       ) {
         return json(
           {
             error:
-              'العضو غير موجود',
+              'لا يمكن للمشرف تغيير كلمة مرور مشرف آخر',
           },
-          404,
+          403,
         );
       }
+
+      /*
+       * Changing an account between member
+       * and admin would break its batch
+       * memberships, so it is not supported.
+       */
       if (
-  body.password !== undefined &&
-  body.password !== '' &&
-  existingProfile.role === 'admin'
-) {
-  return json(
-    {
-      error:
-        'لا يمكن للمشرف تغيير كلمة مرور مشرف آخر',
-    },
-    403,
-  );
-}
+        body.role !== undefined &&
+        body.role !== existingProfile.role
+      ) {
+        return json(
+          {
+            error:
+              'تغيير نوع الحساب غير مدعوم حالياً',
+          },
+          400,
+        );
+      }
 
       const profileUpdate:
         Record<string, unknown> = {};
@@ -467,48 +534,27 @@ Deno.serve(async (req) => {
         const password =
           String(body.password);
 
+        if (password.length < 6) {
+          return json(
+            {
+              error:
+                'كلمة المرور يجب أن تكون 6 أحرف أو أكثر',
+            },
+            400,
+          );
+        }
 
         authUpdate.password =
           password;
       }
 
-      if (
-        body.role !== undefined
-      ) {
-        if (
-          body.role !== 'member' &&
-          body.role !== 'admin'
-        ) {
-          return json(
-            {
-              error:
-                'الدور غير صالح',
-            },
-            400,
-          );
-        }
-
-        /*
-         * Prevent accidentally removing
-         * your own admin permissions.
-         */
-        if (
-          userId === caller.id &&
-          body.role !== 'admin'
-        ) {
-          return json(
-            {
-              error:
-                'لا يمكنك إزالة صلاحية المشرف من حسابك الحالي',
-            },
-            400,
-          );
-        }
-
-        profileUpdate.role =
-          body.role;
-      }
-
+      /*
+       * Exclusion / reactivation only flips
+       * the account flags. The batch
+       * membership is kept untouched, so a
+       * reactivated member returns to the
+       * SAME batch with all history intact.
+       */
       if (
         body.is_active !==
         undefined
@@ -596,37 +642,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      const {
-        data: updatedProfile,
-        error: reloadError,
-      } =
-        await admin
-          .from('profiles')
-          .select(
-            `
-            id,
-            full_name,
-            phone,
-            role,
-            active,
-            created_at
-            `,
-          )
-          .eq('id', userId)
-          .single();
-
-      if (
-        reloadError ||
-        !updatedProfile
-      ) {
-        return json(
-          {
-            error:
-              'تم التحديث ولكن تعذر إعادة تحميل العضو',
-          },
-          500,
-        );
-      }
+      const updatedProfile =
+        await loadProfile(admin, userId);
 
       return json({
         user:
@@ -650,7 +667,7 @@ Deno.serve(async (req) => {
           body.user_id || '',
         );
 
-      if (!userId) {
+      if (!isUuid(userId)) {
         return json(
           {
             error:
@@ -672,11 +689,22 @@ Deno.serve(async (req) => {
         );
       }
 
+      const target =
+        await loadProfile(admin, userId);
+
+      await requireCanManageAccount(
+        admin,
+        caller,
+        target,
+      );
+
       /*
        * profiles.id references auth.users
-       * with ON DELETE CASCADE,
+       * with ON DELETE CASCADE, and
+       * batch_memberships.user_id references
+       * profiles with ON DELETE CASCADE,
        * so deleting the Auth user also
-       * removes the profile.
+       * removes the profile and memberships.
        */
       const {
         error: deleteError,
@@ -701,6 +729,81 @@ Deno.serve(async (req) => {
       });
     }
 
+    /*
+     * =================================
+     * SET BATCH ADMIN ASSIGNMENTS
+     * (master admin only)
+     * =================================
+     */
+    if (action === 'set-admin-batches') {
+      requireMaster(caller);
+
+      const userId =
+        String(
+          body.user_id || '',
+        );
+
+      if (!isUuid(userId)) {
+        return json(
+          {
+            error:
+              'معرف المشرفة مطلوب',
+          },
+          400,
+        );
+      }
+
+      const target =
+        await loadProfile(admin, userId);
+
+      if (
+        target.role !== 'admin' ||
+        target.is_master_admin
+      ) {
+        return json(
+          {
+            error:
+              'يمكن تعيين الدفعات لمشرفات الدفعات فقط',
+          },
+          400,
+        );
+      }
+
+      const batchIds =
+        await validateBatchIds(
+          admin,
+          body.batch_ids,
+        );
+
+      const {
+        error: setError,
+      } =
+        await admin.rpc(
+          'set_admin_batches',
+          {
+            p_user_id: userId,
+            p_batch_ids: batchIds,
+            p_actor: caller.id,
+          },
+        );
+
+      if (setError) {
+        return json(
+          {
+            error:
+              setError.message,
+          },
+          400,
+        );
+      }
+
+      return json({
+        success: true,
+        message:
+          'تم تحديث دفعات المشرفة بنجاح',
+      });
+    }
+
     return json(
       {
         error:
@@ -709,19 +812,9 @@ Deno.serve(async (req) => {
       400,
     );
   } catch (error) {
-    console.error(
-      'admin-users error:',
+    return errorResponse(
       error,
-    );
-
-    return json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'حدث خطأ غير متوقع',
-      },
-      500,
+      'admin-users',
     );
   }
 });

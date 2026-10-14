@@ -1,5 +1,7 @@
 export type UserRole = 'member' | 'admin';
 
+export type MembershipRole = 'member' | 'admin';
+
 export interface User {
   id: string;
   name: string;
@@ -8,6 +10,41 @@ export interface User {
   is_active: boolean;
   created_at: string;
   auth_uid?: string;
+  is_master_admin?: boolean;
+}
+
+export interface Batch {
+  id: string;
+  name: string;
+  created_at: string;
+  archived_at: string | null;
+}
+
+export interface BatchMembership {
+  id: string;
+  batch_id: string;
+  user_id: string;
+  membership_role: MembershipRole;
+  created_at: string;
+}
+
+// Admin account as listed for master-admin permission management
+export interface AdminAccount {
+  user: User;
+  is_master_admin: boolean;
+  batch_ids: string[];
+}
+
+export type AdminType = 'master' | 'batch';
+
+export interface NewAccountPayload {
+  name: string;
+  phone: string;
+  password: string;
+  role: UserRole;
+  batch_id?: string; // required when role === 'member'
+  is_master_admin?: boolean; // role === 'admin' only (master admins only)
+  batch_ids?: string[]; // role === 'admin' && !is_master_admin
 }
 
 export interface GroupSettings {
@@ -97,4 +134,17 @@ export interface MemberDailyStatus {
   missed_revision_days_count?: number;
   is_severely_behind?: boolean;
   severe_reasons?: ('recitation' | 'revision')[];
+}
+
+export interface BatchBootstrap {
+  batch: Batch;
+  cycle_id: string;
+  cycleInfo: CycleInfo;
+  settings: GroupSettings;
+  restDays: RestDay[];
+  users: User[];
+  recitations: RecitationLog[];
+  revisions: RevisionLog[];
+  todayRecitations: RecitationLog[];
+  todayRevisions: RevisionLog[];
 }

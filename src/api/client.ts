@@ -1,10 +1,13 @@
 import {
   User,
+  Batch,
+  AdminAccount,
+  NewAccountPayload,
+  BatchBootstrap,
   GroupSettings,
   RestDay,
   RecitationLog,
   RevisionLog,
-  CycleInfo,
 } from '../types';
 
 import { supabase } from '../lib/supabase';
@@ -18,8 +21,25 @@ import {
 import { phoneToAuthEmail } from '../lib/authHelpers';
 
 
+/*
+ * ====================================
+ * ROW TYPES (database shape)
+ * ====================================
+ *
+ * Every program table is scoped to a
+ * batch: cycles carry batch_id, and
+ * rest days / pauses / recitations /
+ * revisions are scoped through their
+ * cycle_id. Row Level Security on the
+ * server enforces the same isolation,
+ * so the filters below are not the
+ * security boundary — they only avoid
+ * loading other batches' data.
+ */
+
 type CycleRow = {
   id: string;
+  batch_id: string;
   cycle_number: number;
   name: string | null;
   starts_on: string;
@@ -37,6 +57,14 @@ type ProfileRow = {
   active: boolean;
   created_at: string;
   deactivated_at: string | null;
+  is_master_admin: boolean;
+};
+
+type BatchRow = {
+  id: string;
+  name: string;
+  created_at: string;
+  archived_at: string | null;
 };
 
 type RestDayRow = {
@@ -60,11 +88,49 @@ type PauseRow = {
 
 type ThoughtRow = {
   id: string;
+  batch_id: string;
   content_html: string;
   published_by: string | null;
   published_at: string;
   is_published: boolean;
 };
+
+type RecitationRow = {
+  id: string;
+  cycle_id: string;
+  user_id: string;
+  listener_id: string | null;
+  quarter_number: number;
+  notes: string | null;
+  submitted_at: string;
+};
+
+type RevisionRow = {
+  id: string;
+  cycle_id: string;
+  user_id: string;
+  program_day: number;
+  start_quarter: number;
+  end_quarter: number;
+  confirmed_at: string;
+};
+
+type MembershipWithProfileRow = {
+  membership_role: 'member' | 'admin';
+  profile: ProfileRow | null;
+};
+
+type AdminMembershipRow = {
+  user_id: string;
+  batch_id: string;
+};
+
+
+const PROFILE_COLUMNS =
+  'id, full_name, phone, role, active, created_at, deactivated_at, is_master_admin';
+
+const BATCH_COLUMNS =
+  'id, name, created_at, archived_at';
 
 
 function mapProfile(row: ProfileRow): User {
@@ -76,7 +142,72 @@ function mapProfile(row: ProfileRow): User {
     is_active: row.active,
     created_at: row.created_at,
     auth_uid: row.id,
+    is_master_admin: !!row.is_master_admin,
   };
+}
+
+
+function requireBatchId(
+  batchId: string | undefined | null
+): string {
+  if (!batchId) {
+    throw new Error(
+      'يرجى اختيار الدفعة أولاً'
+    );
+  }
+
+  return batchId;
+}
+
+
+/*
+ * Calls an Edge Function and surfaces
+ * the server's Arabic error message
+ * (non-2xx responses arrive as
+ * FunctionsHttpError with the JSON
+ * body in error.context).
+ */
+async function invokeFunction<T>(
+  name: 'admin-users' | 'admin-actions',
+  body: Record<string, unknown>,
+  fallbackMessage: string
+): Promise<T> {
+  const { data, error } =
+    await supabase.functions.invoke(
+      name,
+      { body }
+    );
+
+  if (error) {
+    let message = fallbackMessage;
+
+    const context = (
+      error as { context?: unknown }
+    ).context;
+
+    if (context instanceof Response) {
+      try {
+        const payload =
+          await context.json();
+
+        if (payload?.error) {
+          message = String(
+            payload.error
+          );
+        }
+      } catch {
+        // keep fallback message
+      }
+    }
+
+    throw new Error(message);
+  }
+
+  if (data?.error) {
+    throw new Error(data.error);
+  }
+
+  return data as T;
 }
 
 
@@ -103,9 +234,7 @@ async function getCurrentProfile(): Promise<ProfileRow> {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select(
-      'id, full_name, phone, role, active, created_at, deactivated_at'
-    )
+    .select(PROFILE_COLUMNS)
     .eq('id', user.id)
     .single();
 
@@ -117,28 +246,95 @@ async function getCurrentProfile(): Promise<ProfileRow> {
 }
 
 
-async function getAllProfiles(): Promise<ProfileRow[]> {
+async function getBatch(
+  batchId: string
+): Promise<Batch> {
   const { data, error } = await supabase
-    .from('profiles')
-    .select(
-      'id, full_name, phone, role, active, created_at, deactivated_at'
-    )
-    .order('created_at', {
-      ascending: true,
-    });
+    .from('batches')
+    .select(BATCH_COLUMNS)
+    .eq('id', batchId)
+    .maybeSingle();
 
   if (error) {
     throw error;
   }
 
-  return (data || []) as ProfileRow[];
+  /*
+   * RLS hides batches the caller
+   * cannot access, so "not found"
+   * also means "not authorized".
+   */
+  if (!data) {
+    throw new Error(
+      'لا تملكين صلاحية الوصول لهذه الدفعة'
+    );
+  }
+
+  return data as BatchRow;
 }
 
 
-async function getActiveCycle(): Promise<CycleRow> {
+/*
+ * Users relevant to one batch:
+ * - its members (active and excluded)
+ * - admins assigned to it
+ * - master admins (they manage every batch)
+ */
+async function getBatchUsers(
+  batchId: string
+): Promise<User[]> {
+  const [membershipsResult, mastersResult] =
+    await Promise.all([
+      supabase
+        .from('batch_memberships')
+        .select(
+          `membership_role, profile:profiles!batch_memberships_user_id_fkey(${PROFILE_COLUMNS})`
+        )
+        .eq('batch_id', batchId),
+      supabase
+        .from('profiles')
+        .select(PROFILE_COLUMNS)
+        .eq('role', 'admin')
+        .eq('is_master_admin', true),
+    ]);
+
+  if (membershipsResult.error) {
+    throw membershipsResult.error;
+  }
+
+  if (mastersResult.error) {
+    throw mastersResult.error;
+  }
+
+  const byId = new Map<string, ProfileRow>();
+
+  for (const row of (membershipsResult.data ||
+    []) as unknown as MembershipWithProfileRow[]) {
+    if (row.profile) {
+      byId.set(row.profile.id, row.profile);
+    }
+  }
+
+  for (const row of (mastersResult.data ||
+    []) as ProfileRow[]) {
+    byId.set(row.id, row);
+  }
+
+  return Array.from(byId.values())
+    .sort((a, b) =>
+      a.created_at.localeCompare(b.created_at)
+    )
+    .map(mapProfile);
+}
+
+
+async function getActiveCycle(
+  batchId: string
+): Promise<CycleRow> {
   const { data, error } = await supabase
     .from('cycles')
     .select('*')
+    .eq('batch_id', batchId)
     .eq('status', 'active')
     .order('cycle_number', {
       ascending: false,
@@ -150,38 +346,13 @@ async function getActiveCycle(): Promise<CycleRow> {
     throw error;
   }
 
-  if (data) {
-    return data as CycleRow;
-  }
-
-  const profile = await getCurrentProfile();
-
-  if (profile.role !== 'admin') {
+  if (!data) {
     throw new Error(
-      'لا توجد دورة نشطة حالياً'
+      'لا توجد دورة نشطة لهذه الدفعة حالياً'
     );
   }
 
-  const today = formatDate(new Date());
-
-  const { data: created, error: createError } =
-    await supabase
-      .from('cycles')
-      .insert({
-        cycle_number: 1,
-        name: 'الدورة الأولى',
-        starts_on: today,
-        status: 'active',
-        created_by: profile.id,
-      })
-      .select('*')
-      .single();
-
-  if (createError) {
-    throw createError;
-  }
-
-  return created as CycleRow;
+  return data as CycleRow;
 }
 
 
@@ -313,10 +484,13 @@ function mapRestDays(
 }
 
 
-async function getLatestThought(): Promise<ThoughtRow | null> {
+async function getLatestThought(
+  batchId: string
+): Promise<ThoughtRow | null> {
   const { data, error } = await supabase
     .from('daily_thoughts')
     .select('*')
+    .eq('batch_id', batchId)
     .eq('is_published', true)
     .order('published_at', {
       ascending: false,
@@ -334,72 +508,46 @@ async function getLatestThought(): Promise<ThoughtRow | null> {
 }
 
 
-async function buildBootstrap() {
-  const [cycle, profiles] = await Promise.all([
-    getActiveCycle(),
-    getAllProfiles(),
-  ]);
+/*
+ * Lightweight program state for one
+ * batch (cycle + settings + rest days),
+ * used by write operations that need
+ * the active cycle but not the members.
+ */
+async function getProgramState(
+  batchId: string
+) {
+  const cycle =
+    await getActiveCycle(batchId);
 
-  const [
-    restRows,
-    pauseRows,
-    latestThought,
-  ] = await Promise.all([
-    getRestDayRows(cycle.id),
-    getPauseRows(cycle.id),
-    getLatestThought(),
-  ]);
+  const [restRows, pauseRows] =
+    await Promise.all([
+      getRestDayRows(cycle.id),
+      getPauseRows(cycle.id),
+    ]);
 
-  const users = profiles.map(mapProfile);
-
-  const userMap = new Map(
-    users.map((user) => [
-      user.id,
-      user,
-    ])
+  const settings = buildSettings(
+    cycle,
+    pauseRows
   );
 
-  const publisherName =
-    latestThought?.published_by
-      ? userMap.get(
-          latestThought.published_by
-        )?.name
-      : undefined;
-
-  const settings =
-    buildSettings(
-      cycle,
-      pauseRows,
-      latestThought,
-      publisherName
-    );
-
-  const restDays =
-    mapRestDays(
-      restRows,
-      userMap
-    );
-
-  const cycleInfo =
-    calculateCycleInfo(
-      settings,
-      restDays,
-      formatDate(new Date())
-    );
+  const restDays = mapRestDays(
+    restRows,
+    new Map()
+  );
 
   return {
     cycle,
-    cycleInfo,
+    pauseRows,
     settings,
     restDays,
-    users,
   };
 }
 
 
 async function getRecitationRows(
   cycleId: string
-) {
+): Promise<RecitationRow[]> {
   const { data, error } = await supabase
     .from('tasmia_submissions')
     .select(
@@ -422,23 +570,17 @@ async function getRecitationRows(
     throw error;
   }
 
-  return data || [];
+  return (data || []) as RecitationRow[];
 }
 
 
-async function mapRecitations(
+function mapRecitations(
   cycle: CycleRow,
-  rows: any[],
-  users?: User[]
-): Promise<RecitationLog[]> {
-  const allUsers =
-    users ||
-    (await getAllProfiles()).map(
-      mapProfile
-    );
-
+  rows: RecitationRow[],
+  users: User[]
+): RecitationLog[] {
   const userMap = new Map(
-    allUsers.map((user) => [
+    users.map((user) => [
       user.id,
       user,
     ])
@@ -449,7 +591,9 @@ async function mapRecitations(
       userMap.get(row.user_id);
 
     const listener =
-      userMap.get(row.listener_id);
+      row.listener_id
+        ? userMap.get(row.listener_id)
+        : undefined;
 
     const submittedDate =
       String(
@@ -462,7 +606,7 @@ async function mapRecitations(
       member_name:
         member?.name || 'عضو',
       listener_id:
-        row.listener_id,
+        row.listener_id || undefined,
       listener_name:
         listener?.name,
       quarter_number:
@@ -484,26 +628,9 @@ async function mapRecitations(
 }
 
 
-async function buildRevisionDateMap(
-  cycle: CycleRow,
-  settings: GroupSettings,
-  restDays: RestDay[]
-) {
-  const today =
-    formatDate(new Date());
-
-  return getActiveCycleDates(
-    cycle.starts_on,
-    today,
-    restDays,
-    settings
-  );
-}
-
-
 async function getRevisionRows(
   cycleId: string
-) {
+): Promise<RevisionRow[]> {
   const { data, error } = await supabase
     .from('review_confirmations')
     .select(
@@ -526,49 +653,30 @@ async function getRevisionRows(
     throw error;
   }
 
-  return data || [];
+  return (data || []) as RevisionRow[];
 }
 
 
-async function mapRevisions(
+function mapRevisions(
   cycle: CycleRow,
-  rows: any[],
-  users?: User[],
-  settingsArg?: GroupSettings,
-  restDaysArg?: RestDay[]
-): Promise<RevisionLog[]> {
-  const allUsers =
-    users ||
-    (await getAllProfiles()).map(
-      mapProfile
-    );
-
+  rows: RevisionRow[],
+  users: User[],
+  settings: GroupSettings,
+  restDays: RestDay[]
+): RevisionLog[] {
   const userMap = new Map(
-    allUsers.map((user) => [
+    users.map((user) => [
       user.id,
       user,
     ])
   );
 
-  let settings = settingsArg;
-  let restDays = restDaysArg;
-
-  if (!settings || !restDays) {
-    const bootstrap =
-      await buildBootstrap();
-
-    settings =
-      bootstrap.settings;
-
-    restDays =
-      bootstrap.restDays;
-  }
-
   const activeDates =
-    await buildRevisionDateMap(
-      cycle,
-      settings,
-      restDays
+    getActiveCycleDates(
+      cycle.starts_on,
+      formatDate(new Date()),
+      restDays,
+      settings
     );
 
   return rows.map((row) => {
@@ -601,6 +709,109 @@ async function mapRevisions(
         row.confirmed_at,
     };
   });
+}
+
+
+/*
+ * Loads everything one batch's
+ * dashboard needs, in a single pass.
+ */
+async function buildBootstrap(
+  batchId: string
+): Promise<BatchBootstrap> {
+  const [batch, cycle, users] =
+    await Promise.all([
+      getBatch(batchId),
+      getActiveCycle(batchId),
+      getBatchUsers(batchId),
+    ]);
+
+  const [
+    restRows,
+    pauseRows,
+    latestThought,
+    recitationRows,
+    revisionRows,
+  ] = await Promise.all([
+    getRestDayRows(cycle.id),
+    getPauseRows(cycle.id),
+    getLatestThought(batchId),
+    getRecitationRows(cycle.id),
+    getRevisionRows(cycle.id),
+  ]);
+
+  const userMap = new Map(
+    users.map((user) => [
+      user.id,
+      user,
+    ])
+  );
+
+  const publisherName =
+    latestThought?.published_by
+      ? userMap.get(
+          latestThought.published_by
+        )?.name
+      : undefined;
+
+  const settings =
+    buildSettings(
+      cycle,
+      pauseRows,
+      latestThought,
+      publisherName
+    );
+
+  const restDays =
+    mapRestDays(
+      restRows,
+      userMap
+    );
+
+  const today =
+    formatDate(new Date());
+
+  const cycleInfo =
+    calculateCycleInfo(
+      settings,
+      restDays,
+      today
+    );
+
+  const recitations =
+    mapRecitations(
+      cycle,
+      recitationRows,
+      users
+    );
+
+  const revisions =
+    mapRevisions(
+      cycle,
+      revisionRows,
+      users,
+      settings,
+      restDays
+    );
+
+  return {
+    batch,
+    cycle_id: cycle.id,
+    cycleInfo,
+    settings,
+    restDays,
+    users,
+    recitations,
+    revisions,
+    todayRecitations:
+      recitations.filter(
+        (item) => item.date === today
+      ),
+    todayRevisions:
+      revisions.filter(
+        (item) => item.date === today
+      ),
+  };
 }
 
 
@@ -640,9 +851,7 @@ export const api = {
     } =
       await supabase
         .from('profiles')
-        .select(
-          'id, full_name, phone, role, active, created_at, deactivated_at'
-        )
+        .select(PROFILE_COLUMNS)
         .eq(
           'id',
           data.user.id
@@ -758,85 +967,49 @@ export const api = {
   },
 
 
-  async getBootstrap(
-    _params?: {
-      client_date?: string;
-    }
-  ): Promise<{
-    cycleInfo: CycleInfo;
-    settings: GroupSettings;
-    restDays: RestDay[];
-    users: User[];
-    todayRecitations:
-      RecitationLog[];
-    todayRevisions:
-      RevisionLog[];
+  /*
+   * Batches the current user may open.
+   * RLS decides: master admins get all,
+   * batch admins their assigned ones,
+   * members their single batch.
+   */
+  async getAccessibleBatches(): Promise<{
+    batches: Batch[];
   }> {
-    const bootstrap =
-      await buildBootstrap();
+    const { data, error } =
+      await supabase
+        .from('batches')
+        .select(BATCH_COLUMNS)
+        .is('archived_at', null)
+        .order('created_at', {
+          ascending: true,
+        });
 
-    const [
-      recitationRows,
-      revisionRows,
-    ] =
-      await Promise.all([
-        getRecitationRows(
-          bootstrap.cycle.id
-        ),
-        getRevisionRows(
-          bootstrap.cycle.id
-        ),
-      ]);
-
-    const recitations =
-      await mapRecitations(
-        bootstrap.cycle,
-        recitationRows,
-        bootstrap.users
-      );
-
-    const revisions =
-      await mapRevisions(
-        bootstrap.cycle,
-        revisionRows,
-        bootstrap.users,
-        bootstrap.settings,
-        bootstrap.restDays
-      );
-
-    const today =
-      formatDate(new Date());
+    if (error) {
+      throw error;
+    }
 
     return {
-      cycleInfo:
-        bootstrap.cycleInfo,
-
-      settings:
-        bootstrap.settings,
-
-      restDays:
-        bootstrap.restDays,
-
-      users:
-        bootstrap.users,
-
-      todayRecitations:
-        recitations.filter(
-          (item) =>
-            item.date === today
-        ),
-
-      todayRevisions:
-        revisions.filter(
-          (item) =>
-            item.date === today
-        ),
+      batches:
+        (data || []) as BatchRow[],
     };
   },
 
 
+  async getBootstrap(
+    params: {
+      batch_id: string;
+    }
+  ): Promise<BatchBootstrap> {
+    return buildBootstrap(
+      requireBatchId(params.batch_id)
+    );
+  },
+
+
   async getRecitations(
-    params?: {
+    params: {
+      batch_id: string;
       member_id?: string;
       reciter_id?: string;
       date?: string;
@@ -846,23 +1019,16 @@ export const api = {
       RecitationLog[];
   }> {
     const bootstrap =
-      await buildBootstrap();
-
-    const rows =
-      await getRecitationRows(
-        bootstrap.cycle.id
+      await buildBootstrap(
+        requireBatchId(params.batch_id)
       );
 
     let recitations =
-      await mapRecitations(
-        bootstrap.cycle,
-        rows,
-        bootstrap.users
-      );
+      bootstrap.recitations;
 
     const memberId =
-      params?.member_id ||
-      params?.reciter_id;
+      params.member_id ||
+      params.reciter_id;
 
     if (memberId) {
       recitations =
@@ -873,7 +1039,7 @@ export const api = {
         );
     }
 
-    if (params?.date) {
+    if (params.date) {
       recitations =
         recitations.filter(
           (item) =>
@@ -889,6 +1055,7 @@ export const api = {
 
 
   async recordRecitation(
+    batchId: string,
     payload: {
       quarter_number: number;
       listener_id: string;
@@ -896,18 +1063,17 @@ export const api = {
       date?: string;
     }
   ): Promise<{
-    recitation:
-      RecitationLog;
     message: string;
   }> {
     const user =
       await getCurrentAuthUser();
 
-    const bootstrap =
-      await buildBootstrap();
+    const cycle =
+      await getActiveCycle(
+        requireBatchId(batchId)
+      );
 
     const {
-      data,
       error,
     } =
       await supabase
@@ -916,7 +1082,7 @@ export const api = {
         )
         .insert({
           cycle_id:
-            bootstrap.cycle.id,
+            cycle.id,
           user_id:
             user.id,
           listener_id:
@@ -925,9 +1091,7 @@ export const api = {
             payload.quarter_number,
           notes:
             payload.notes || null,
-        })
-        .select('*')
-        .single();
+        });
 
     if (error) {
       if (
@@ -941,16 +1105,7 @@ export const api = {
       throw error;
     }
 
-    const [mapped] =
-      await mapRecitations(
-        bootstrap.cycle,
-        [data],
-        bootstrap.users
-      );
-
     return {
-      recitation:
-        mapped,
       message:
         'تم تسجيل التسميع بنجاح',
     };
@@ -958,7 +1113,8 @@ export const api = {
 
 
   async getRevisions(
-    params?: {
+    params: {
+      batch_id: string;
       member_id?: string;
       date?: string;
     }
@@ -967,24 +1123,15 @@ export const api = {
       RevisionLog[];
   }> {
     const bootstrap =
-      await buildBootstrap();
-
-    const rows =
-      await getRevisionRows(
-        bootstrap.cycle.id
+      await buildBootstrap(
+        requireBatchId(params.batch_id)
       );
 
     let revisions =
-      await mapRevisions(
-        bootstrap.cycle,
-        rows,
-        bootstrap.users,
-        bootstrap.settings,
-        bootstrap.restDays
-      );
+      bootstrap.revisions;
 
     if (
-      params?.member_id
+      params.member_id
     ) {
       revisions =
         revisions.filter(
@@ -994,7 +1141,7 @@ export const api = {
         );
     }
 
-    if (params?.date) {
+    if (params.date) {
       revisions =
         revisions.filter(
           (item) =>
@@ -1010,20 +1157,21 @@ export const api = {
 
 
   async recordRevision(
+    batchId: string,
     payload: {
       notes?: string;
       date?: string;
     }
   ): Promise<{
-    revision:
-      RevisionLog;
     message: string;
   }> {
     const user =
       await getCurrentAuthUser();
 
-    const bootstrap =
-      await buildBootstrap();
+    const program =
+      await getProgramState(
+        requireBatchId(batchId)
+      );
 
     const targetDate =
       payload.date ||
@@ -1031,14 +1179,14 @@ export const api = {
 
     const activeDates =
       getActiveCycleDates(
-        bootstrap.settings
+        program.settings
           .start_date,
 
         targetDate,
 
-        bootstrap.restDays,
+        program.restDays,
 
-        bootstrap.settings
+        program.settings
       );
 
     let programDay =
@@ -1049,8 +1197,8 @@ export const api = {
     if (programDay < 1) {
       const targetInfo =
         calculateCycleInfo(
-          bootstrap.settings,
-          bootstrap.restDays,
+          program.settings,
+          program.restDays,
           targetDate
         );
 
@@ -1068,13 +1216,12 @@ export const api = {
       Math.max(
         1,
         endQuarter -
-          bootstrap.settings
+          program.settings
             .review_window +
           1
       );
 
     const {
-      data,
       error,
     } =
       await supabase
@@ -1083,7 +1230,7 @@ export const api = {
         )
         .insert({
           cycle_id:
-            bootstrap.cycle.id,
+            program.cycle.id,
           user_id:
             user.id,
           program_day:
@@ -1092,9 +1239,7 @@ export const api = {
             startQuarter,
           end_quarter:
             endQuarter,
-        })
-        .select('*')
-        .single();
+        });
 
     if (error) {
       if (
@@ -1108,17 +1253,7 @@ export const api = {
       throw error;
     }
 
-    const [revision] =
-      await mapRevisions(
-        bootstrap.cycle,
-        [data],
-        bootstrap.users,
-        bootstrap.settings,
-        bootstrap.restDays
-      );
-
     return {
-      revision,
       message:
         'تم تأكيد المراجعة بنجاح',
     };
@@ -1126,14 +1261,7 @@ export const api = {
 
 
   async adminAddMember(
-    payload: {
-      name: string;
-      phone: string;
-      password: string;
-      role:
-        | 'member'
-        | 'admin';
-    }
+    payload: NewAccountPayload
   ): Promise<{
     user: User;
     message: string;
@@ -1155,35 +1283,34 @@ export const api = {
       );
     }
 
-    const {
-      data,
-      error,
-    } =
-      await supabase.functions
-        .invoke(
-          'admin-users',
-          {
-            body: {
-              action:
-                'create',
-              ...payload,
-            },
-          }
-        );
-
-    if (error) {
+    if (
+      payload.role === 'member' &&
+      !payload.batch_id
+    ) {
       throw new Error(
-        'تعذر إضافة الحساب. حاول مرة أخرى.'
+        'يرجى اختيار دفعة العضوة'
       );
     }
 
-    if (data?.error) {
+    if (
+      payload.role === 'admin' &&
+      !payload.is_master_admin &&
+      (!payload.batch_ids ||
+        payload.batch_ids.length === 0)
+    ) {
       throw new Error(
-        data.error
+        'يرجى اختيار دفعة واحدة على الأقل لمشرفة الدفعة'
       );
     }
 
-    return data;
+    return invokeFunction(
+      'admin-users',
+      {
+        action: 'create',
+        ...payload,
+      },
+      'تعذر إضافة الحساب. حاول مرة أخرى.'
+    );
   },
 
 
@@ -1193,9 +1320,6 @@ export const api = {
       name?: string;
       phone?: string;
       password?: string;
-      role?:
-        | 'member'
-        | 'admin';
       is_active?: boolean;
     }
   ): Promise<{
@@ -1217,107 +1341,20 @@ export const api = {
     }
 
     /*
-     * Password and phone changes must go
-     * through the Edge Function because
-     * they also affect Supabase Auth.
+     * All account changes go through the
+     * Edge Function, which verifies that
+     * the caller manages this account's
+     * batch before touching anything.
      */
-    if (
-      payload.password ||
-      payload.phone !== undefined 
-    ) {
-      const {
-        data,
-        error,
-      } =
-        await supabase.functions
-          .invoke(
-            'admin-users',
-            {
-              body: {
-                action:
-                  'update',
-                user_id:
-                  id,
-                ...payload,
-              },
-            }
-          );
-
-      if (error) {
-        throw new Error(
-          'تعذر تحديث الحساب. حاول مرة أخرى.'
-        );
-      }
-
-      if (data?.error) {
-        throw new Error(
-          data.error
-        );
-      }
-
-      return data;
-    }
-
-    const update: Record<
-      string,
-      unknown
-    > = {};
-
-    if (
-      payload.name !==
-      undefined
-    ) {
-      update.full_name =
-        payload.name;
-    }
-
-    if (
-      payload.role !==
-      undefined
-    ) {
-      update.role =
-        payload.role;
-    }
-
-    if (
-      payload.is_active !==
-      undefined
-    ) {
-      update.active =
-        payload.is_active;
-
-      update.deactivated_at =
-        payload.is_active
-          ? null
-          : new Date()
-              .toISOString();
-    }
-
-    const {
-      data,
-      error,
-    } =
-      await supabase
-        .from('profiles')
-        .update(update)
-        .eq('id', id)
-        .select(
-          'id, full_name, phone, role, active, created_at, deactivated_at'
-        )
-        .single();
-
-    if (error) {
-      throw error;
-    }
-
-    return {
-      user:
-        mapProfile(
-          data as ProfileRow
-        ),
-      message:
-        'تم تحديث العضو بنجاح',
-    };
+    return invokeFunction(
+      'admin-users',
+      {
+        action: 'update',
+        user_id: id,
+        ...payload,
+      },
+      'تعذر تحديث الحساب. حاول مرة أخرى.'
+    );
   },
 
 
@@ -1327,56 +1364,150 @@ export const api = {
     success: boolean;
     message: string;
   }> {
-    const {
-      data,
-      error,
-    } =
-      await supabase.functions
-        .invoke(
-          'admin-users',
-          {
-            body: {
-              action:
-                'delete',
-              user_id:
-                id,
-            },
-          }
-        );
+    return invokeFunction(
+      'admin-users',
+      {
+        action: 'delete',
+        user_id: id,
+      },
+      'تعذر حذف الحساب. حاول مرة أخرى.'
+    );
+  },
 
-    if (error) {
+
+  /*
+   * Master admin only: every admin
+   * account with its batch assignments.
+   */
+  async adminListAdmins(): Promise<{
+    admins: AdminAccount[];
+  }> {
+    const [profilesResult, membershipsResult] =
+      await Promise.all([
+        supabase
+          .from('profiles')
+          .select(PROFILE_COLUMNS)
+          .eq('role', 'admin')
+          .order('created_at', {
+            ascending: true,
+          }),
+        supabase
+          .from('batch_memberships')
+          .select('user_id, batch_id')
+          .eq('membership_role', 'admin'),
+      ]);
+
+    if (profilesResult.error) {
+      throw profilesResult.error;
+    }
+
+    if (membershipsResult.error) {
+      throw membershipsResult.error;
+    }
+
+    const batchesByUser =
+      new Map<string, string[]>();
+
+    for (const row of (membershipsResult.data ||
+      []) as AdminMembershipRow[]) {
+      const list =
+        batchesByUser.get(row.user_id) || [];
+
+      list.push(row.batch_id);
+
+      batchesByUser.set(row.user_id, list);
+    }
+
+    return {
+      admins: (
+        (profilesResult.data ||
+          []) as ProfileRow[]
+      ).map((row) => ({
+        user: mapProfile(row),
+        is_master_admin:
+          !!row.is_master_admin,
+        batch_ids:
+          batchesByUser.get(row.id) || [],
+      })),
+    };
+  },
+
+
+  async adminSetAdminBatches(
+    userId: string,
+    batchIds: string[]
+  ): Promise<{
+    message: string;
+  }> {
+    if (batchIds.length === 0) {
       throw new Error(
-        'تعذر حذف الحساب. حاول مرة أخرى.'
+        'يرجى اختيار دفعة واحدة على الأقل'
       );
     }
 
-    if (data?.error) {
+    return invokeFunction(
+      'admin-users',
+      {
+        action: 'set-admin-batches',
+        user_id: userId,
+        batch_ids: batchIds,
+      },
+      'تعذر تحديث صلاحيات المشرفة.'
+    );
+  },
+
+
+  async adminCreateBatch(
+    payload: {
+      name: string;
+      start_date: string;
+    }
+  ): Promise<{
+    batch: Batch;
+    message: string;
+  }> {
+    if (!payload.name.trim()) {
       throw new Error(
-        data.error
+        'اسم الدفعة مطلوب'
       );
     }
 
-    return data;
+    if (!payload.start_date) {
+      throw new Error(
+        'تاريخ البداية مطلوب'
+      );
+    }
+
+    return invokeFunction(
+      'admin-actions',
+      {
+        action: 'create-batch',
+        name: payload.name.trim(),
+        start_date: payload.start_date,
+      },
+      'تعذر إنشاء الدفعة. حاول مرة أخرى.'
+    );
   },
 
 
   async adminAddRestDay(
+    batchId: string,
     payload: {
       date: string;
       note: string;
     }
   ): Promise<{
-    restDay: RestDay;
     message: string;
   }> {
     const profile =
       await getCurrentProfile();
 
-    const bootstrap =
-      await buildBootstrap();
+    const cycle =
+      await getActiveCycle(
+        requireBatchId(batchId)
+      );
 
     const {
-      data,
       error,
     } =
       await supabase
@@ -1385,38 +1516,20 @@ export const api = {
         )
         .insert({
           cycle_id:
-            bootstrap.cycle.id,
+            cycle.id,
           rest_date:
             payload.date,
           reason:
             payload.note || null,
           created_by:
             profile.id,
-        })
-        .select('*')
-        .single();
+        });
 
     if (error) {
       throw error;
     }
 
-    const restDay:
-      RestDay = {
-      id: data.id,
-      date:
-        data.rest_date,
-      note:
-        data.reason || '',
-      added_by_admin_id:
-        profile.id,
-      added_by_name:
-        profile.full_name,
-      created_at:
-        data.created_at,
-    };
-
     return {
-      restDay,
       message:
         'تمت إضافة يوم الراحة',
     };
@@ -1451,19 +1564,24 @@ export const api = {
   },
 
 
-  async adminPause():
-    Promise<{
-      settings:
-        GroupSettings;
-      cycleInfo:
-        CycleInfo;
-      message: string;
-    }> {
+  async adminPause(
+    batchId: string
+  ): Promise<{
+    message: string;
+  }> {
     const profile =
       await getCurrentProfile();
 
-    const bootstrap =
-      await buildBootstrap();
+    const program =
+      await getProgramState(
+        requireBatchId(batchId)
+      );
+
+    if (program.settings.is_paused) {
+      throw new Error(
+        'البرنامج متوقف بالفعل'
+      );
+    }
 
     const today =
       formatDate(new Date());
@@ -1477,7 +1595,7 @@ export const api = {
         )
         .insert({
           cycle_id:
-            bootstrap.cycle.id,
+            program.cycle.id,
           paused_on:
             today,
           created_by:
@@ -1488,38 +1606,25 @@ export const api = {
       throw error;
     }
 
-    const refreshed =
-      await buildBootstrap();
-
     return {
-      settings:
-        refreshed.settings,
-      cycleInfo:
-        refreshed.cycleInfo,
       message:
         'تم إيقاف البرنامج مؤقتاً',
     };
   },
 
 
-  async adminResume():
-    Promise<{
-      settings:
-        GroupSettings;
-      cycleInfo:
-        CycleInfo;
-      message: string;
-    }> {
-    const bootstrap =
-      await buildBootstrap();
-
-    const pauses =
-      await getPauseRows(
-        bootstrap.cycle.id
+  async adminResume(
+    batchId: string
+  ): Promise<{
+    message: string;
+  }> {
+    const program =
+      await getProgramState(
+        requireBatchId(batchId)
       );
 
     const activePause =
-      pauses.find(
+      program.pauseRows.find(
         (pause) =>
           !pause.resumed_on
       );
@@ -1554,14 +1659,7 @@ export const api = {
       throw error;
     }
 
-    const refreshed =
-      await buildBootstrap();
-
     return {
-      settings:
-        refreshed.settings,
-      cycleInfo:
-        refreshed.cycleInfo,
       message:
         'تم استئناف البرنامج',
     };
@@ -1569,16 +1667,17 @@ export const api = {
 
 
   async adminUpdateSettings(
+    batchId: string,
     payload: {
       start_date?: string;
     }
   ): Promise<{
-    settings:
-      GroupSettings;
     message: string;
   }> {
-    const bootstrap =
-      await buildBootstrap();
+    const cycle =
+      await getActiveCycle(
+        requireBatchId(batchId)
+      );
 
     if (
       payload.start_date
@@ -1594,7 +1693,7 @@ export const api = {
           })
           .eq(
             'id',
-            bootstrap.cycle.id
+            cycle.id
           );
 
       if (error) {
@@ -1602,12 +1701,7 @@ export const api = {
       }
     }
 
-    const refreshed =
-      await buildBootstrap();
-
     return {
-      settings:
-        refreshed.settings,
       message:
         'تم حفظ الإعدادات',
     };
@@ -1615,13 +1709,12 @@ export const api = {
 
 
   async adminUpdateDailyThought(
+    batchId: string,
     payload: {
       daily_thought:
         string;
     }
   ): Promise<{
-    settings:
-      GroupSettings;
     message: string;
   }> {
     const profile =
@@ -1635,6 +1728,8 @@ export const api = {
           'daily_thoughts'
         )
         .insert({
+          batch_id:
+            requireBatchId(batchId),
           content_html:
             payload.daily_thought,
           published_by:
@@ -1647,26 +1742,22 @@ export const api = {
       throw error;
     }
 
-    const refreshed =
-      await buildBootstrap();
-
     return {
-      settings:
-        refreshed.settings,
       message:
         'تم حفظ ونشر الخاطرة',
     };
   },
 
 
-  async adminDeleteDailyThought():
-    Promise<{
-      settings:
-        GroupSettings;
-      message: string;
-    }> {
+  async adminDeleteDailyThought(
+    batchId: string
+  ): Promise<{
+    message: string;
+  }> {
     const latest =
-      await getLatestThought();
+      await getLatestThought(
+        requireBatchId(batchId)
+      );
 
     if (latest) {
       const {
@@ -1683,6 +1774,10 @@ export const api = {
           .eq(
             'id',
             latest.id
+          )
+          .eq(
+            'batch_id',
+            batchId
           );
 
       if (error) {
@@ -1690,100 +1785,61 @@ export const api = {
       }
     }
 
-    const refreshed =
-      await buildBootstrap();
-
     return {
-      settings:
-        refreshed.settings,
       message:
         'تم حذف الخاطرة الحالية',
     };
   },
 
 
-  async adminFactoryReset():
-    Promise<{
-      success: boolean;
-      message: string;
-      cycleInfo:
-        CycleInfo;
-      settings:
-        GroupSettings;
-    }> {
-    const {
-      data,
-      error,
-    } =
-      await supabase.functions
-        .invoke(
-          'admin-actions',
-          {
-            body: {
-              action:
-                'factory-reset',
-            },
-          }
-        );
-
-    if (error) {
-      throw new Error(
+  /*
+   * Archives the selected batch's active
+   * cycle and starts the next one.
+   * Other batches are never touched.
+   */
+  async adminFactoryReset(
+    batchId: string,
+    cycleId?: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    const data =
+      await invokeFunction<{
+        message?: string;
+      }>(
+        'admin-actions',
+        {
+          action: 'factory-reset',
+          batch_id:
+            requireBatchId(batchId),
+          cycle_id: cycleId,
+        },
         'تعذر بدء دورة جديدة. حاول مرة أخرى.'
       );
-    }
-
-    if (data?.error) {
-      throw new Error(
-        data.error
-      );
-    }
-
-    const refreshed =
-      await buildBootstrap();
 
     return {
       success: true,
       message:
         data?.message ||
         'تم بدء دورة جديدة',
-      cycleInfo:
-        refreshed.cycleInfo,
-      settings:
-        refreshed.settings,
     };
   },
 
 
-  async adminGetStats():
-    Promise<{
-      total_members: number;
-
-      completed_recitation_count:
-        number;
-
-      completed_revision_count:
-        number;
-
-      pending_recitation_today:
-        any[];
-
-      pending_revision_today:
-        any[];
-
-      member_stats:
-        any[];
-    }> {
+  async adminGetStats(
+    batchId: string
+  ): Promise<{
+    total_members: number;
+    completed_recitation_count: number;
+    completed_revision_count: number;
+    pending_recitation_today: User[];
+    pending_revision_today: User[];
+  }> {
     const bootstrap =
-      await buildBootstrap();
-
-    const [
-      recitationsResult,
-      revisionsResult,
-    ] =
-      await Promise.all([
-        api.getRecitations(),
-        api.getRevisions(),
-      ]);
+      await buildBootstrap(
+        requireBatchId(batchId)
+      );
 
     const members =
       bootstrap.users.filter(
@@ -1793,28 +1849,9 @@ export const api = {
           user.is_active
       );
 
-    const today =
-      formatDate(new Date());
-
-    const todayRecitations =
-      recitationsResult
-        .recitations
-        .filter(
-          (item) =>
-            item.date === today
-        );
-
-    const todayRevisions =
-      revisionsResult
-        .revisions
-        .filter(
-          (item) =>
-            item.date === today
-        );
-
     const recitedIds =
       new Set(
-        todayRecitations.map(
+        bootstrap.todayRecitations.map(
           (item) =>
             item.member_id
         )
@@ -1822,7 +1859,7 @@ export const api = {
 
     const reviewedIds =
       new Set(
-        todayRevisions.map(
+        bootstrap.todayRevisions.map(
           (item) =>
             item.member_id
         )
@@ -1853,8 +1890,6 @@ export const api = {
               member.id
             )
         ),
-
-      member_stats: [],
     };
   },
 

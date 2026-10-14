@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { User, GroupSettings, RestDay, RecitationLog, RevisionLog, CycleInfo } from '../types';
+import { Batch, User, GroupSettings, NewAccountPayload, RestDay, RecitationLog, RevisionLog, CycleInfo } from '../types';
 import { getQuarterInfo } from '../data/quranData';
 import {
   calculateMemberRequiredQuarter,
@@ -39,28 +39,28 @@ import {
   RefreshCw,
   Award,
   Headphones,
+  Layers,
+  Crown,
 } from 'lucide-react';
 import { AdminMemberModal } from './AdminMemberModal';
 import { CelebrationBanner, RestDayBanner, PauseBanner } from './Banners';
 import { DailyThoughtEditor } from './DailyThoughtEditor';
+import { AdminAccountsManager } from './AdminAccountsManager';
 
 interface AdminDashboardProps {
   currentUser: User;
+  batch: Batch;
+  accessibleBatches: Batch[];
   cycleInfo: CycleInfo;
   settings: GroupSettings;
   users: User[];
   restDays: RestDay[];
   recitations: RecitationLog[];
   revisions: RevisionLog[];
-  onAddMember: (payload: {
-    name: string;
-    phone: string;
-    password: string;
-    role: 'member' | 'admin';
-  }) => Promise<void>;
+  onAddMember: (payload: NewAccountPayload) => Promise<void>;
   onUpdateMember: (
     id: string,
-    payload: { role?: 'member' | 'admin'; is_active?: boolean; password?: string; name?: string; phone?: string }
+    payload: { is_active?: boolean; password?: string; name?: string; phone?: string }
   ) => Promise<void>;
   onAddRestDay: (payload: { date: string; note: string }) => Promise<void>;
   onDeleteRestDay: (id: string) => Promise<void>;
@@ -78,6 +78,8 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   currentUser,
+  batch,
+  accessibleBatches,
   cycleInfo,
   settings,
   users,
@@ -136,6 +138,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Settings: Start Date
   const [startDateInput, setStartDateInput] = useState(settings.start_date || '');
   const [settingsMsg, setSettingsMsg] = useState('');
+
+  // Keep the start-date field in sync with the selected batch's cycle.
+  useEffect(() => {
+    setStartDateInput(settings.start_date || '');
+  }, [settings.start_date, batch.id]);
+
+  const isMasterAdmin = !!currentUser.is_master_admin;
 
   // Password reset inline state
   const [editingPasswordUserId, setEditingPasswordUserId] = useState<string | null>(null);
@@ -441,6 +450,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <span>لوحة تحكم المشرفة</span>
               </span>
 
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-bold border border-white/20">
+                <Layers className="w-3.5 h-3.5 text-pink-200" />
+                <span>{batch.name}</span>
+              </span>
+
               {!cycleInfo.has_started ? (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-pink-400/20 text-pink-200 border border-pink-400/40 text-xs font-semibold">
                   <Clock className="w-3.5 h-3.5 text-pink-300" />
@@ -742,7 +756,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   {filteredTodayMembers.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-10 text-center text-stone-400 text-xs">
-                        لا يوجد أعضاء مطابقين لمعايير التصفية الحالية
+                        {activeMemberUsers.length === 0
+                          ? 'لا يوجد أعضاء في هذه الدفعة حتى الآن'
+                          : 'لا يوجد أعضاء مطابقين لمعايير التصفية الحالية'}
                       </td>
                     </tr>
                   ) : (
@@ -880,7 +896,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <span>إدارة أعضاء المقرأة</span>
               </h3>
               <p className="text-xs text-stone-500 mt-0.5">
-                إدارة حسابات الحفاظ، وإقصاء الأعضاء مؤقتًا، وإعادة تفعيلهم أو حذفهم نهائيًا
+                إدارة حسابات الحفاظ في «{batch.name}»، وإقصاء الأعضاء مؤقتًا، وإعادة تفعيلهم أو حذفهم نهائيًا
               </p>
             </div>
 
@@ -939,6 +955,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
+          {membersSubTab === 'active' && activeMemberUsers.length === 0 && (
+            <div className="rounded-2xl bg-pink-50/60 border border-pink-100 p-4 text-xs text-pink-900 flex items-center gap-2.5">
+              <Users className="w-4 h-4 text-pink-600 shrink-0" />
+              <span>لا يوجد أعضاء في هذه الدفعة حتى الآن. أضيفي أول عضوة من زر «إضافة عضو جديد».</span>
+            </div>
+          )}
+
           {/* SUB-TAB 1: الأعضاء النشطون */}
           {membersSubTab === 'active' && (
             <div className="bg-white rounded-2xl border border-stone-200 shadow-2xs overflow-hidden">
@@ -979,10 +1002,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 </td>
                           <td className="py-3 px-4">
                             {u.role === 'admin' ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-bold text-[10px] bg-amber-50 text-amber-900 border border-amber-200">
-                                <Shield className="w-3 h-3 text-amber-600" />
-                                مشرف
-                              </span>
+                              u.is_master_admin ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-bold text-[10px] bg-amber-50 text-amber-900 border border-amber-200">
+                                  <Crown className="w-3 h-3 text-amber-600" />
+                                  مشرفة عامة
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-bold text-[10px] bg-rose-50 text-rose-800 border border-rose-200">
+                                  <Shield className="w-3 h-3 text-rose-600" />
+                                  مشرفة الدفعة
+                                </span>
+                              )
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-medium text-[10px] bg-stone-100 text-stone-700">
                                 عضو حافظ
@@ -1191,6 +1221,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* =================================================================== */}
       {activeTab === 'stats' && (
         <div className="space-y-4">
+          {activeMemberUsers.length === 0 && (
+            <div className="rounded-2xl bg-pink-50/60 border border-pink-100 p-4 text-xs text-pink-900 flex items-center gap-2.5">
+              <Users className="w-4 h-4 text-pink-600 shrink-0" />
+              <span>لا يوجد أعضاء في هذه الدفعة حتى الآن، وستظهر الإحصائيات بمجرد إضافة الأعضاء وبدء التسميع.</span>
+            </div>
+          )}
           {/* Sub tabs: Weekly vs Lifetime */}
           <div className="flex border-b border-stone-200 bg-stone-50/70 p-1 rounded-2xl gap-1 text-xs font-bold">
             <button
@@ -1631,6 +1667,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {settingsMsg && <p className="text-xs text-emerald-700 font-medium">{settingsMsg}</p>}
           </div>
 
+          {/* Section: Admin accounts & batch permissions (master admin only) */}
+          {isMasterAdmin && (
+            <AdminAccountsManager batches={accessibleBatches} currentUserId={currentUser.id} />
+          )}
+
           {/* Section 4: Factory Reset */}
           <div className="bg-rose-50/50 rounded-3xl border border-rose-200 p-6 shadow-2xs space-y-3">
             <h3 className="font-bold text-base text-rose-950 flex items-center gap-2">
@@ -1639,6 +1680,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </h3>
             <p className="text-xs text-rose-800 leading-relaxed">
               إعادة عداد الخطة إلى اليوم رقم 1، وتصفير أيام الإيقاف والاستدراك، ومسح جميع سجلات التسميع والمراجعة. يُستخدم عند إتمام الختمة (اليوم 240) أو إعادة تأسيس المقرأة.
+            </p>
+            <p className="text-xs text-rose-900 font-bold">
+              يُطبَّق هذا الإجراء على «{batch.name}» فقط، ولا يؤثر على أي دفعة أخرى.
             </p>
 
             <button
@@ -1658,6 +1702,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         onClose={() => setIsMemberModalOpen(false)}
         onSubmit={onAddMember}
         loading={loading}
+        batches={accessibleBatches}
+        defaultBatchId={batch.id}
+        canCreateAdmins={isMasterAdmin}
       />
 
       {/* Factory Reset Confirmation Modal */}
@@ -1676,6 +1723,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
             <p className="text-xs text-stone-600 leading-relaxed">
               سيتم مسح جميع سجلات التسميع والمراجعة السابقة لجميع الأعضاء، وتعيين بداية الدورة لتاريخ اليوم، والعودة إلى اليوم رقم 1 ورقم الدورة 1.
+            </p>
+            <p className="text-xs font-bold text-rose-800 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+              الدفعة المتأثرة: «{batch.name}» فقط
             </p>
 
             <div>

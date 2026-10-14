@@ -19,6 +19,7 @@ export type Profile = {
   role: 'member' | 'admin';
   active: boolean;
   created_at: string;
+  is_master_admin: boolean;
 };
 
 type AuthContextType = {
@@ -43,7 +44,7 @@ async function loadProfile(userId: string): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
     .select(
-      'id, full_name, phone, role, active, created_at'
+      'id, full_name, phone, role, active, created_at, is_master_admin'
     )
     .eq('id', userId)
     .single();
@@ -64,6 +65,7 @@ function profileToUser(profile: Profile): User {
     is_active: profile.active,
     created_at: profile.created_at,
     auth_uid: profile.id,
+    is_master_admin: !!profile.is_master_admin,
   };
 }
 
