@@ -86,7 +86,7 @@ export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
                     إجمالي جلسات الاستماع لزملائك منذ بداية الدورة
                   </span>
                   <span className="text-[11px] text-emerald-800">
-                    شكر الله سعيك في إعانة إخوانك على التسميع والتثبيت
+                    شكر الله سعيك في إعانة أخواتك على التسميع والتثبيت
                   </span>
                 </div>
               </div>
