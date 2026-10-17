@@ -34,7 +34,6 @@ import {
   AlertOctagon,
   PauseCircle,
   PlayCircle,
-  Key,
   Trash2,
   Plus,
   RefreshCw,
@@ -160,10 +159,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }, [settings.start_date, batch.id]);
 
   const isMasterAdmin = !!currentUser.is_master_admin;
-
-  // Password reset inline state
-  const [editingPasswordUserId, setEditingPasswordUserId] = useState<string | null>(null);
-  const [newPasswordInput, setNewPasswordInput] = useState('');
 
   // Active program cycle calendar dates (excluding rest days and pauses)
   const activeCycleDates = useMemo(() => {
@@ -444,14 +439,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } finally {
       setIsDeletingMember(false);
     }
-  };
-
-  // Reset password
-  const handleSavePassword = async (userId: string) => {
-    if (!newPasswordInput.trim()) return;
-    await onUpdateMember(userId, { password: newPasswordInput.trim() });
-    setEditingPasswordUserId(null);
-    setNewPasswordInput('');
   };
 
   return (
@@ -994,7 +981,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </thead>
                   <tbody className="divide-y divide-stone-100 text-stone-800">
                     {activeUsers.map((u) => {
-                      const isEditingPw = editingPasswordUserId === u.id;
                       const memberStatus = membersTodayStatus.find((s) => s.user.id === u.id);
                       return (
                         <tr key={u.id} className="hover:bg-stone-50/50 transition">
@@ -1092,50 +1078,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   <UserMinus className="w-3.5 h-3.5 text-amber-700" />
                                   <span>إقصاء</span>
                                 </button>
-                              )}
-
-                              {/* Reset password — members only */}
-                              {u.role === 'member' && (
-                                <>
-                                  {isEditingPw ? (
-                                    <div className="flex items-center gap-1">
-                                      <input
-                                        type="text"
-                                        placeholder="كلمة مرور جديدة..."
-                                        value={newPasswordInput}
-                                        onChange={(e) => setNewPasswordInput(e.target.value)}
-                                        className="w-28 px-2 py-1 text-[11px] border border-stone-300 rounded-lg outline-hidden"
-                                      />
-                                      <button
-                                        onClick={() => handleSavePassword(u.id)}
-                                        className="px-2 py-1 rounded-lg bg-emerald-700 text-white text-[10px] font-bold"
-                                      >
-                                        حفظ
-                                      </button>
-                                      <button
-                                        onClick={() => {
-                                          setEditingPasswordUserId(null);
-                                          setNewPasswordInput('');
-                                        }}
-                                        className="px-1.5 py-1 rounded-lg bg-stone-200 text-stone-600 text-[10px]"
-                                      >
-                                        إلغاء
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      onClick={() => {
-                                        setEditingPasswordUserId(u.id);
-                                        setNewPasswordInput('');
-                                      }}
-                                      className="px-2 py-1 rounded-lg text-[11px] bg-stone-100 hover:bg-stone-200 text-stone-600 flex items-center gap-1 transition"
-                                      title="تغيير كلمة مرور العضو"
-                                    >
-                                      <Key className="w-3 h-3" />
-                                      <span>كلمة المرور</span>
-                                    </button>
-                                  )}
-                                </>
                               )}
                             </div>
                           </td>

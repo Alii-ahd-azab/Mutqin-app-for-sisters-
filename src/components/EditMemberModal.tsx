@@ -5,6 +5,8 @@ import { X, Pencil, Lock, Phone } from 'lucide-react';
 
 interface EditMemberModalProps {
   member: User | null;
+  // 'admin' when a master admin edits a batch admin (same fields)
+  accountKind?: 'member' | 'admin';
   onClose: () => void;
   // Sends only the changed fields; all changes are applied by the
   // admin-users Edge Function.
@@ -13,6 +15,7 @@ interface EditMemberModalProps {
 
 export const EditMemberModal: React.FC<EditMemberModalProps> = ({
   member,
+  accountKind = 'member',
   onClose,
   onSubmit,
 }) => {
@@ -90,10 +93,12 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
           <div>
             <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
               <Pencil className="w-5 h-5 text-emerald-700" />
-              تعديل بيانات العضوة
+              {accountKind === 'admin' ? 'تعديل بيانات المشرفة' : 'تعديل بيانات العضوة'}
             </h2>
             <p className="text-xs text-stone-500">
-              تبقى العضوة في دفعتها نفسها مع جميع سجلاتها
+              {accountKind === 'admin'
+                ? 'تبقى صلاحياتها ودفعاتها كما هي'
+                : 'تبقى العضوة في دفعتها نفسها مع جميع سجلاتها'}
             </p>
           </div>
           <button
@@ -141,7 +146,9 @@ export const EditMemberModal: React.FC<EditMemberModalProps> = ({
               <Phone className="w-4 h-4 text-stone-400 absolute left-2.5 top-3" />
             </div>
             <p className="mt-1 text-[10px] text-stone-500">
-              عند تغيير الرقم تسجّل العضوة الدخول بالرقم الجديد فقط.
+              {accountKind === 'admin'
+                ? 'عند تغيير الرقم تسجّل المشرفة الدخول بالرقم الجديد فقط.'
+                : 'عند تغيير الرقم تسجّل العضوة الدخول بالرقم الجديد فقط.'}
             </p>
           </div>
 

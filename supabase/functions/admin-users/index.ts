@@ -8,6 +8,7 @@ import {
   createAdminClient,
   getAdminCaller,
   canManageBatch,
+  canChangeAccountPassword,
   requireMaster,
   requireManagedBatch,
   getMemberBatchId,
@@ -145,7 +146,7 @@ async function requireCanManageAccount(
       target.id !== caller.id
     ) {
       throw new HttpError(
-        'إدارة حسابات المشرفات متاحة للمشرفة العامة فقط',
+        'ليس لديكِ صلاحية لتعديل هذا الحساب',
         403,
       );
     }
@@ -442,15 +443,23 @@ Deno.serve(async (req) => {
         existingProfile,
       );
 
+      /*
+       * Master admins may reset a BATCH admin's
+       * password; nobody may reset a master's
+       * (or their own) password here.
+       */
       if (
         body.password !== undefined &&
         body.password !== '' &&
-        existingProfile.role === 'admin'
+        !canChangeAccountPassword(
+          caller,
+          existingProfile,
+        )
       ) {
         return json(
           {
             error:
-              'لا يمكن للمشرف تغيير كلمة مرور مشرف آخر',
+              'لا يمكنكِ تغيير كلمة مرور هذا الحساب',
           },
           403,
         );
@@ -998,6 +1007,25 @@ Deno.serve(async (req) => {
         caller,
         target,
       );
+
+      /*
+       * Master admin accounts are never
+       * deleted from here (only members and
+       * batch admins), so the master-admin
+       * safeguards cannot be bypassed.
+       */
+      if (
+        target.role === 'admin' &&
+        target.is_master_admin
+      ) {
+        return json(
+          {
+            error:
+              'لا يمكن حذف حساب مشرفة عامة',
+          },
+          403,
+        );
+      }
 
       /*
        * ONE atomic database statement:

@@ -197,6 +197,40 @@ export function canManageBatch(
   );
 }
 
+/*
+ * Who may set another account's password
+ * through admin-users (without knowing the
+ * current one):
+ * - members: yes (the batch permission is
+ *   checked separately)
+ * - batch admins: only by a master admin
+ * - master admins and yourself: never here
+ *   (your own password uses the normal
+ *   current-password flow)
+ */
+export function canChangeAccountPassword(
+  caller: AdminCaller,
+  target: {
+    id: string;
+    role: string;
+    is_master_admin: boolean;
+  },
+): boolean {
+  if (target.id === caller.id) {
+    return false;
+  }
+
+  if (target.role === 'member') {
+    return true;
+  }
+
+  return (
+    caller.isMaster &&
+    target.role === 'admin' &&
+    !target.is_master_admin
+  );
+}
+
 export function requireMaster(
   caller: AdminCaller,
 ) {
