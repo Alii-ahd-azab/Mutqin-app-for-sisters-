@@ -520,11 +520,50 @@ Deno.serve(async (req) => {
           );
         }
 
-        profileUpdate.phone =
-          phone;
+        /*
+         * Only touch the login when the phone
+         * actually changes. The Auth user is
+         * updated in place (same UUID), so the
+         * member keeps her account, batch and
+         * history.
+         */
+        if (phone !== existingProfile.phone) {
+          const {
+            data: phoneOwner,
+            error: phoneCheckError,
+          } = await admin
+            .from('profiles')
+            .select('id')
+            .eq('phone', phone)
+            .neq('id', userId)
+            .maybeSingle();
 
-        authUpdate.email =
-          phoneToEmail(phone);
+          if (phoneCheckError) {
+            throw new HttpError(
+              phoneCheckError.message,
+              500,
+            );
+          }
+
+          if (phoneOwner) {
+            return json(
+              {
+                error:
+                  'يوجد حساب آخر بهذا الرقم',
+              },
+              409,
+            );
+          }
+
+          profileUpdate.phone =
+            phone;
+
+          authUpdate.email =
+            phoneToEmail(phone);
+
+          authUpdate.email_confirm =
+            true;
+        }
       }
 
       if (
@@ -731,12 +770,54 @@ Deno.serve(async (req) => {
             );
 
         if (authUpdateError) {
+          const code =
+            (authUpdateError as { code?: string }).code;
+
+          console.error(
+            'admin-users update auth failed',
+            {
+              userId,
+              status: authUpdateError.status,
+              code,
+              message: authUpdateError.message,
+            },
+          );
+
+          const lowered =
+            authUpdateError.message.toLowerCase();
+
+          if (
+            code === 'email_exists' ||
+            lowered.includes('already')
+          ) {
+            return json(
+              {
+                error:
+                  'يوجد حساب آخر بهذا الرقم',
+              },
+              409,
+            );
+          }
+
+          if (
+            code === 'weak_password' ||
+            lowered.includes('password')
+          ) {
+            return json(
+              {
+                error:
+                  'كلمة المرور غير مقبولة، اختاري كلمة مرور أقوى (6 أحرف على الأقل)',
+              },
+              400,
+            );
+          }
+
           return json(
             {
               error:
-                authUpdateError.message,
+                'تعذر تحديث بيانات الدخول. حاول مرة أخرى.',
             },
-            400,
+            500,
           );
         }
       }
@@ -758,12 +839,65 @@ Deno.serve(async (req) => {
         if (
           profileUpdateError
         ) {
+          console.error(
+            'admin-users update profile failed',
+            {
+              userId,
+              code: profileUpdateError.code,
+              message: profileUpdateError.message,
+              details: profileUpdateError.details,
+            },
+          );
+
+          /*
+           * Keep the login consistent with the
+           * profile: point the Auth email back
+           * at the old phone. (A changed password
+           * cannot be restored; it is logged.)
+           */
+          if (authUpdate.email) {
+            const {
+              error: revertError,
+            } =
+              await admin.auth.admin
+                .updateUserById(userId, {
+                  email: phoneToEmail(
+                    existingProfile.phone,
+                  ),
+                  email_confirm: true,
+                });
+
+            if (revertError) {
+              console.error(
+                'admin-users update: login email revert failed',
+                { userId, message: revertError.message },
+              );
+            }
+          }
+
+          if (authUpdate.password) {
+            console.error(
+              'admin-users update: password was changed but profile update failed',
+              { userId },
+            );
+          }
+
+          if (profileUpdateError.code === '23505') {
+            return json(
+              {
+                error:
+                  'يوجد حساب آخر بهذا الرقم',
+              },
+              409,
+            );
+          }
+
           return json(
             {
               error:
-                profileUpdateError.message,
+                'تعذر تحديث بيانات العضوة. حاول مرة أخرى.',
             },
-            400,
+            500,
           );
         }
       }

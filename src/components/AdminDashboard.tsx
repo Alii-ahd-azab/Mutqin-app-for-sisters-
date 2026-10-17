@@ -41,11 +41,13 @@ import {
   Headphones,
   Layers,
   Crown,
+  Pencil,
 } from 'lucide-react';
 import { AdminMemberModal } from './AdminMemberModal';
 import { CelebrationBanner, RestDayBanner, PauseBanner } from './Banners';
 import { DailyThoughtEditor } from './DailyThoughtEditor';
 import { AdminAccountsManager } from './AdminAccountsManager';
+import { EditMemberModal } from './EditMemberModal';
 
 interface AdminDashboardProps {
   currentUser: User;
@@ -111,6 +113,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isExcluding, setIsExcluding] = useState(false);
 
   const [memberToReactivate, setMemberToReactivate] = useState<User | null>(null);
+
+  // Edit member (name / phone / password) — applied by the admin-users Edge Function
+  const [memberToEdit, setMemberToEdit] = useState<User | null>(null);
   const [isReactivating, setIsReactivating] = useState(false);
 
   const [showPauseModal, setShowPauseModal] = useState(false);
@@ -1042,6 +1047,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
+                              {/* Edit member data */}
+                              {u.role === 'member' && (
+                                <button
+                                  onClick={() => setMemberToEdit(u)}
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 flex items-center gap-1 transition cursor-pointer"
+                                  title="تعديل الاسم ورقم الهاتف وكلمة المرور"
+                                >
+                                  <Pencil className="w-3.5 h-3.5 text-stone-500" />
+                                  <span>تعديل</span>
+                                </button>
+                              )}
+
                               {/* Exclude member button (for non-admin members) */}
                               {u.id !== currentUser.id && u.role === 'member' && (
                                 <button
@@ -1179,6 +1196,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               </td>
                               <td className="py-3 px-4">
                                 <div className="flex items-center gap-2">
+                                  {/* Edit member data */}
+                                  <button
+                                    onClick={() => setMemberToEdit(u)}
+                                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                                    title="تعديل الاسم ورقم الهاتف وكلمة المرور"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5 text-stone-500" />
+                                    <span>تعديل</span>
+                                  </button>
+
                                   {/* Reactivate Button */}
                                   <button
                                     onClick={() => setMemberToReactivate(u)}
@@ -1699,6 +1726,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* Edit Member Modal */}
+      <EditMemberModal
+        member={memberToEdit}
+        onClose={() => setMemberToEdit(null)}
+        onSubmit={async (payload) => {
+          if (!memberToEdit) return;
+          const newName = payload.name ?? memberToEdit.name;
+          await onUpdateMember(memberToEdit.id, payload);
+          setActionFeedbackMsg(`تم تحديث بيانات العضوة "${newName}" بنجاح.`);
+          setTimeout(() => setActionFeedbackMsg(''), 4000);
+        }}
+      />
 
       {/* Admin Member Modal */}
       <AdminMemberModal
