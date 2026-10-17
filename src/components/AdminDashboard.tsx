@@ -48,6 +48,7 @@ import { AdminMemberModal } from './AdminMemberModal';
 import { CelebrationBanner, RestDayBanner, PauseBanner } from './Banners';
 import { DailyThoughtEditor } from './DailyThoughtEditor';
 import { AdminAccountsManager } from './AdminAccountsManager';
+import { BatchAdminActions } from './BatchAdminActions';
 import { EditMemberModal } from './EditMemberModal';
 import { MoveMemberModal } from './MoveMemberModal';
 
@@ -1000,7 +1001,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             )}
                           </td>
                           <td className="py-3 px-4 font-mono text-stone-600">
-  {u.role === 'admin' ? '—' : u.phone}
+  {u.role === 'admin' && !(isMasterAdmin && !u.is_master_admin) ? '—' : u.phone}
 </td>
                           <td className="py-3 px-4">
                             {u.role === 'admin' ? (
@@ -1023,10 +1024,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           </td>
                           <td className="py-3 px-4">
                             <div className="space-y-1">
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
-                                <UserCheck className="w-3.5 h-3.5" />
-                                نشط
-                              </span>
+                              {u.is_active ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
+                                  <UserCheck className="w-3.5 h-3.5" />
+                                  نشط
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700">
+                                  <UserX className="w-3.5 h-3.5" />
+                                  مُقصاة (غير نشطة)
+                                </span>
+                              )}
                               {u.role === 'member' && memberStatus && (
                                 <div className="text-[10px] space-y-0.5">
                                   <div className={memberStatus.isSeverelyBehindRecitation ? 'text-rose-700 font-bold' : memberStatus.missedQuartersCount > 0 ? 'text-amber-700 font-medium' : 'text-stone-400'}>
@@ -1079,6 +1087,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   <span>إقصاء</span>
                                 </button>
                               )}
+
+                              {/* Batch-admin management — master admins only (server re-checks) */}
+                              {isMasterAdmin &&
+                                u.role === 'admin' &&
+                                !u.is_master_admin &&
+                                u.id !== currentUser.id && (
+                                  <BatchAdminActions
+                                    account={u}
+                                    batches={accessibleBatches}
+                                    onChanged={(message) => {
+                                      onAccountsChanged();
+                                      setActionFeedbackMsg(message);
+                                      setTimeout(() => setActionFeedbackMsg(''), 4000);
+                                    }}
+                                  />
+                                )}
                             </div>
                           </td>
                         </tr>
