@@ -243,6 +243,39 @@ export function getCalendarDaysElapsed(
  *
  * Revision window = latest 8 quarters.
  */
+/**
+ * Is this calendar date inside a program pause?
+ *
+ * Uses the pause DATES when known (every pause of the
+ * cycle, including resumed ones): a pause covers
+ * [from, until) — the resume date is active again.
+ * Falls back to the open pause only for legacy settings
+ * without pause_periods.
+ */
+export function isPausedDate(
+  settings: GroupSettings | undefined | null,
+  dateStr: string
+): boolean {
+  if (!settings) {
+    return false;
+  }
+
+  if (settings.pause_periods) {
+    return settings.pause_periods.some(
+      (p) =>
+        dateStr >= p.from &&
+        (p.until === null || dateStr < p.until)
+    );
+  }
+
+  return !!(
+    settings.is_paused &&
+    settings.paused_at &&
+    dateStr >= settings.paused_at
+  );
+}
+
+
 export function calculateCycleInfo(
   settings: GroupSettings,
   restDays: RestDay[],
@@ -350,25 +383,59 @@ export function calculateCycleInfo(
   const restDaysCount =
     restDaysInPeriod.length;
 
-  let currentPauseDays = 0;
+  let totalPausedDays: number;
 
-  if (
-    settings.is_paused &&
-    settings.paused_at &&
-    targetDateStr >=
-      settings.paused_at
-  ) {
-    currentPauseDays =
-      getCalendarDaysElapsed(
-        settings.paused_at,
-        targetDateStr
-      );
+  if (settings.pause_periods) {
+    /*
+     * Paused calendar dates between start and target that
+     * are not already rest days. This makes the program day
+     * equal to the number of ACTIVE dates — the same days
+     * getActiveCycleDates returns — so Tasmi'a (quarter of
+     * the day) and revision (program_day) always agree.
+     */
+    const restDateSet = new Set(
+      restDaysInPeriod.map((rd) => rd.date)
+    );
+
+    totalPausedDays = 0;
+
+    for (
+      let i = 0;
+      i < daysElapsed;
+      i++
+    ) {
+      const dStr = new Date(
+        startMs + i * msPerDay
+      ).toISOString().slice(0, 10);
+
+      if (
+        !restDateSet.has(dStr) &&
+        isPausedDate(settings, dStr)
+      ) {
+        totalPausedDays++;
+      }
+    }
+  } else {
+    let currentPauseDays = 0;
+
+    if (
+      settings.is_paused &&
+      settings.paused_at &&
+      targetDateStr >=
+        settings.paused_at
+    ) {
+      currentPauseDays =
+        getCalendarDaysElapsed(
+          settings.paused_at,
+          targetDateStr
+        );
+    }
+
+    totalPausedDays =
+      (settings.total_paused_days ||
+        0) +
+      currentPauseDays;
   }
-
-  const totalPausedDays =
-    (settings.total_paused_days ||
-      0) +
-    currentPauseDays;
 
   let calculatedCycleDay =
     daysElapsed -
@@ -728,11 +795,12 @@ export function getActiveCycleDates(
       continue;
     }
 
+    /*
+     * Paused dates are not program days — whether the pause
+     * is still open or was already resumed.
+     */
     if (
-      settings?.is_paused &&
-      settings.paused_at &&
-      dStr >=
-        settings.paused_at
+      isPausedDate(settings, dStr)
     ) {
       continue;
     }
@@ -745,6 +813,12 @@ export function getActiveCycleDates(
 
 
 export interface MemberRevisionStatus {
+  /*
+   * Whether today is an active program day. On rest days
+   * and pause days there is NO new revision obligation.
+   */
+  isTodayProgramDay: boolean;
+
   /*
    * Past obligation days only.
    * Today is not counted as missed.
@@ -911,6 +985,11 @@ export function calculateMemberRevisionStatus(
     );
 
   return {
+    isTodayProgramDay:
+      activeCycleDates.includes(
+        todayDateStr
+      ),
+
     missedRevisionDaysCount:
       pastMissedCount,
 

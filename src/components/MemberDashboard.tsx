@@ -53,6 +53,8 @@ interface RevisionDayItem {
   surahEnd: string;
   bounds: ReturnType<typeof getRangeBounds>;
   cycleInfoForDay: CycleInfo;
+  // Rest / pause day with nothing owed: no new revision obligation today
+  isNoObligationDay?: boolean;
 }
 
 interface MemberDashboardProps {
@@ -227,7 +229,10 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
       });
     }
 
-    // 2. Today's date
+    // 2. Today — only when today is an ACTIVE program day. Rest days and
+    //    pause days create no new revision obligation.
+    if (!userRevisionStatus.isTodayProgramDay) return items;
+
     const todayReviewBounds = getRangeBounds(cycleInfo.review_start, cycleInfo.review_end);
     items.push({
       date: cycleInfo.today_date,
@@ -250,6 +255,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
     settings,
     restDays,
     userRevisionStatus.pastMissedDates,
+    userRevisionStatus.isTodayProgramDay,
     hasReviewedToday,
     reviewStartInfo.surahName,
     reviewEndInfo.surahName,
@@ -259,11 +265,15 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
     ? 0
     : Math.min(Math.max(0, activeRevisionIndex), revisionDays.length - 1);
 
+  // Nothing in the list happens only on a rest/pause day with no past debt:
+  // the last active day's revision is done and there is no new obligation.
+  const isNoObligationDay = revisionDays.length === 0 && !userRevisionStatus.isTodayProgramDay;
   const currentRevisionItem: RevisionDayItem = revisionDays[clampedRevisionIndex] || {
     date: cycleInfo.today_date,
     isToday: true,
     isMissed: false,
-    isReviewed: hasReviewedToday,
+    isReviewed: isNoObligationDay || hasReviewedToday,
+    isNoObligationDay,
     reviewStart: cycleInfo.review_start,
     reviewEnd: cycleInfo.review_end,
     reviewCount: cycleInfo.review_count,
@@ -569,7 +579,12 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
               </div>
 
               {/* Status Badge */}
-              {currentRevisionItem.isReviewed ? (
+              {currentRevisionItem.isNoObligationDay ? (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-stone-100 text-stone-700 border border-stone-200">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-stone-500" />
+                  لا مراجعة جديدة اليوم
+                </span>
+              ) : currentRevisionItem.isReviewed ? (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                   تمت المراجعة
@@ -708,6 +723,16 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
                 <UserX className="w-4 h-4" />
                 <span>حسابك مُقصَى حاليًا — لا يمكن تأكيد المراجعة</span>
               </button>
+            ) : currentRevisionItem.isNoObligationDay ? (
+              <div
+                id="revision-no-obligation-status"
+                className="w-full py-3.5 px-4 rounded-2xl font-bold text-sm transition flex items-center justify-center gap-2 bg-stone-50 text-stone-700 border border-stone-200 shadow-2xs text-center"
+              >
+                <CheckCircle2 className="w-4 h-4 text-stone-500 shrink-0" />
+                <span>
+                  {cycleInfo.is_paused ? 'البرنامج متوقف مؤقتًا' : 'اليوم يوم راحة'} — لا توجد مراجعة جديدة، وأنتِ مواكِبة لورد آخر يوم نشط
+                </span>
+              </div>
             ) : currentRevisionItem.isReviewed ? (
               <div
                 id="revision-completed-status"

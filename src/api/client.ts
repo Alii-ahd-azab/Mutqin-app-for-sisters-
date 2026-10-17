@@ -1311,21 +1311,20 @@ export const api = {
         program.settings
       );
 
-    let programDay =
+    /*
+     * Revision is indexed by ACTIVE program day. Rest days
+     * and pause days are not program days, so they never
+     * create (or re-open) a revision obligation.
+     */
+    const programDay =
       activeDates.indexOf(
         targetDate
       ) + 1;
 
     if (programDay < 1) {
-      const targetInfo =
-        calculateCycleInfo(
-          program.settings,
-          program.restDays,
-          targetDate
-        );
-
-      programDay =
-        targetInfo.cycle_day;
+      throw new Error(
+        'لا توجد مراجعة جديدة في هذا اليوم (يوم راحة أو إيقاف للبرنامج)'
+      );
     }
 
     const endQuarter =

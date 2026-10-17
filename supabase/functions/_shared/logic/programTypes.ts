@@ -26,6 +26,10 @@ export interface GroupSettings {
   is_paused: boolean;
   paused_at: string | null; // ISO date YYYY-MM-DD
   total_paused_days: number;
+  // Every pause of the cycle as dates: [from, until) — `until` is the
+  // resume date (an active day again), null while still paused.
+  // When present, paused DATES are excluded from program days.
+  pause_periods?: { from: string; until: string | null }[];
   daily_thought?: string; // HTML formatted thought of the day
   daily_thought_updated_at?: string; // ISO date string
   daily_thought_updated_by?: string; // Admin display name

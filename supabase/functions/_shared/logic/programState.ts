@@ -78,6 +78,10 @@ export function buildProgramSettings(
     is_paused: !!currentPause,
     paused_at: currentPause?.paused_on || null,
     total_paused_days: completedPauseDays,
+    pause_periods: pauses.map((pause) => ({
+      from: pause.paused_on,
+      until: pause.resumed_on,
+    })),
   };
 }
 
