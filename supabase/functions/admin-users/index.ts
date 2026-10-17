@@ -866,12 +866,16 @@ Deno.serve(async (req) => {
       );
 
       /*
-       * profiles.id references auth.users
-       * with ON DELETE CASCADE, and
-       * batch_memberships.user_id references
-       * profiles with ON DELETE CASCADE,
-       * so deleting the Auth user also
-       * removes the profile and memberships.
+       * ONE atomic database statement:
+       * deleting the Auth user cascades to
+       * profiles, and from there to the
+       * member's batch memberships, own
+       * recitations and own revisions.
+       * Recitations where she was only the
+       * LISTENER are kept (listener_id is set
+       * to NULL; listener_name_snapshot keeps
+       * her name). Either everything is
+       * deleted or nothing is.
        */
       const {
         error: deleteError,
@@ -880,12 +884,31 @@ Deno.serve(async (req) => {
           .deleteUser(userId);
 
       if (deleteError) {
+        /*
+         * Supabase Auth hides the underlying
+         * Postgres error (constraint name etc.)
+         * from API callers; it appears in
+         * Dashboard → Logs → Auth. Log what we
+         * have here for correlation, and never
+         * show technical text to the admin.
+         */
+        console.error(
+          'admin-users delete failed',
+          {
+            userId,
+            name: deleteError.name,
+            status: deleteError.status,
+            code: (deleteError as { code?: string }).code,
+            message: deleteError.message,
+          },
+        );
+
         return json(
           {
             error:
-              deleteError.message,
+              'تعذر حذف الحساب نهائياً. يرجى المحاولة لاحقاً أو التواصل مع الدعم الفني.',
           },
-          400,
+          500,
         );
       }
 

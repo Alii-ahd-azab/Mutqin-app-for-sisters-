@@ -100,7 +100,10 @@ type RecitationRow = {
   id: string;
   cycle_id: string;
   user_id: string;
+  // null once the listener's account has been permanently deleted
   listener_id: string | null;
+  // listener's name at the time of the recitation (set by the database)
+  listener_name_snapshot: string | null;
   quarter_number: number;
   notes: string | null;
   submitted_at: string;
@@ -557,6 +560,7 @@ async function getRecitationRows(
       cycle_id,
       user_id,
       listener_id,
+      listener_name_snapshot,
       quarter_number,
       notes,
       submitted_at
@@ -608,7 +612,10 @@ function mapRecitations(
         member?.name || 'عضو',
       listener_id:
         row.listener_id || undefined,
+      // The name at recitation time; still shown after the
+      // listener's account is deleted or renamed.
       listener_name:
+        row.listener_name_snapshot ||
         listener?.name,
       quarter_number:
         row.quarter_number,
