@@ -3,6 +3,7 @@ import { AdminAccountUpdate, Batch, User } from '../types';
 import { api } from '../api/client';
 import { BatchCheckboxList } from './BatchCheckboxList';
 import { EditMemberModal } from './EditMemberModal';
+import { ACTION_TONE, ACTION_ICON, CONFIRM_TONE } from './actionButtonStyles';
 import { Layers, X, Pencil, UserMinus, RotateCcw, Trash2, AlertCircle } from 'lucide-react';
 
 interface BatchAdminActionsProps {
@@ -21,7 +22,7 @@ type ConfirmKind = 'deactivate' | 'reactivate' | 'delete';
 const DELETE_CONFIRM_TEXT = 'حذف نهائي';
 
 const actionButton =
-  'px-2.5 py-1 rounded-lg text-[11px] font-bold border flex items-center gap-1 transition cursor-pointer whitespace-nowrap';
+  'px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition cursor-pointer whitespace-nowrap';
 
 export const BatchAdminActions: React.FC<BatchAdminActionsProps> = ({
   account,
@@ -129,41 +130,41 @@ export const BatchAdminActions: React.FC<BatchAdminActionsProps> = ({
       <div className="flex items-center gap-1.5 flex-wrap">
         <button
           onClick={() => setEditingAccount(true)}
-          className={`${actionButton} bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-200`}
+          className={`${actionButton} ${ACTION_TONE.edit}`}
           title="تعديل الاسم ورقم الهاتف وكلمة المرور"
         >
-          <Pencil className="w-3.5 h-3.5 text-stone-500" />
+          <Pencil className={`w-3.5 h-3.5 ${ACTION_ICON.edit}`} />
           <span>تعديل</span>
         </button>
         <button
           onClick={openEditBatches}
-          className={`${actionButton} bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-200`}
+          className={`${actionButton} ${ACTION_TONE.batches}`}
         >
-          <Layers className="w-3.5 h-3.5 text-stone-500" />
+          <Layers className={`w-3.5 h-3.5 ${ACTION_ICON.batches}`} />
           <span>تعديل الدفعات</span>
         </button>
         {account.is_active ? (
           <button
             onClick={() => openConfirm('deactivate')}
-            className={`${actionButton} bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200`}
+            className={`${actionButton} ${ACTION_TONE.exclude}`}
           >
-            <UserMinus className="w-3.5 h-3.5 text-amber-700" />
+            <UserMinus className={`w-3.5 h-3.5 ${ACTION_ICON.exclude}`} />
             <span>إقصاء</span>
           </button>
         ) : (
           <button
             onClick={() => openConfirm('reactivate')}
-            className={`${actionButton} bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200`}
+            className={`${actionButton} ${ACTION_TONE.reactivate}`}
           >
-            <RotateCcw className="w-3.5 h-3.5 text-emerald-700" />
+            <RotateCcw className={`w-3.5 h-3.5 ${ACTION_ICON.reactivate}`} />
             <span>إعادة التفعيل</span>
           </button>
         )}
         <button
           onClick={() => openConfirm('delete')}
-          className={`${actionButton} bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200`}
+          className={`${actionButton} ${ACTION_TONE.delete}`}
         >
-          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+          <Trash2 className={`w-3.5 h-3.5 ${ACTION_ICON.delete}`} />
           <span>حذف نهائي</span>
         </button>
       </div>
@@ -294,8 +295,8 @@ export const BatchAdminActions: React.FC<BatchAdminActionsProps> = ({
                   confirmKind === 'reactivate'
                     ? 'bg-emerald-700 hover:bg-emerald-800'
                     : confirmKind === 'delete'
-                    ? 'bg-rose-700 hover:bg-rose-800'
-                    : 'bg-amber-600 hover:bg-amber-700'
+                    ? CONFIRM_TONE.delete
+                    : CONFIRM_TONE.exclude
                 }`}
               >
                 {confirming

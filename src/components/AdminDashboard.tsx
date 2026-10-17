@@ -49,6 +49,7 @@ import { CelebrationBanner, RestDayBanner, PauseBanner } from './Banners';
 import { DailyThoughtEditor } from './DailyThoughtEditor';
 import { AdminAccountsManager } from './AdminAccountsManager';
 import { BatchAdminActions } from './BatchAdminActions';
+import { ACTION_TONE, ACTION_ICON, CONFIRM_TONE } from './actionButtonStyles';
 import { EditMemberModal } from './EditMemberModal';
 import { MoveMemberModal } from './MoveMemberModal';
 
@@ -1056,10 +1057,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               {u.role === 'member' && (
                                 <button
                                   onClick={() => setMemberToEdit(u)}
-                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 flex items-center gap-1 transition cursor-pointer"
+                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${ACTION_TONE.edit} flex items-center gap-1 transition cursor-pointer`}
                                   title="تعديل الاسم ورقم الهاتف وكلمة المرور"
                                 >
-                                  <Pencil className="w-3.5 h-3.5 text-stone-500" />
+                                  <Pencil className={`w-3.5 h-3.5 ${ACTION_ICON.edit}`} />
                                   <span>تعديل</span>
                                 </button>
                               )}
@@ -1068,10 +1069,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               {u.role === 'member' && canMoveMembers && (
                                 <button
                                   onClick={() => setMemberToMove(u)}
-                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 flex items-center gap-1 transition cursor-pointer whitespace-nowrap"
+                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${ACTION_TONE.move} flex items-center gap-1 transition cursor-pointer whitespace-nowrap`}
                                   title="نقل العضوة إلى دفعة أخرى مع الاحتفاظ بسجلها"
                                 >
-                                  <ArrowLeftRight className="w-3.5 h-3.5 text-stone-500" />
+                                  <ArrowLeftRight className={`w-3.5 h-3.5 ${ACTION_ICON.move}`} />
                                   <span>نقل إلى دفعة أخرى</span>
                                 </button>
                               )}
@@ -1080,10 +1081,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               {u.id !== currentUser.id && u.role === 'member' && (
                                 <button
                                   onClick={() => setMemberToExclude(u)}
-                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1 transition cursor-pointer"
+                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${ACTION_TONE.exclude} flex items-center gap-1 transition cursor-pointer`}
                                   title="إقصاء العضو مؤقتًا من المجموعة ونقله لقائمة الأعضاء المُقصَين"
                                 >
-                                  <UserMinus className="w-3.5 h-3.5 text-amber-700" />
+                                  <UserMinus className={`w-3.5 h-3.5 ${ACTION_ICON.exclude}`} />
                                   <span>إقصاء</span>
                                 </button>
                               )}
@@ -1188,10 +1189,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   {/* Edit member data */}
                                   <button
                                     onClick={() => setMemberToEdit(u)}
-                                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold ${ACTION_TONE.edit} flex items-center gap-1.5 transition shadow-2xs cursor-pointer`}
                                     title="تعديل الاسم ورقم الهاتف وكلمة المرور"
                                   >
-                                    <Pencil className="w-3.5 h-3.5 text-stone-500" />
+                                    <Pencil className={`w-3.5 h-3.5 ${ACTION_ICON.edit}`} />
                                     <span>تعديل</span>
                                   </button>
 
@@ -1199,10 +1200,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   {canMoveMembers && (
                                     <button
                                       onClick={() => setMemberToMove(u)}
-                                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 flex items-center gap-1.5 transition shadow-2xs cursor-pointer whitespace-nowrap"
+                                      className={`px-3 py-1.5 rounded-xl text-xs font-bold ${ACTION_TONE.move} flex items-center gap-1.5 transition shadow-2xs cursor-pointer whitespace-nowrap`}
                                       title="نقل العضوة إلى دفعة أخرى مع الاحتفاظ بسجلها"
                                     >
-                                      <ArrowLeftRight className="w-3.5 h-3.5 text-stone-500" />
+                                      <ArrowLeftRight className={`w-3.5 h-3.5 ${ACTION_ICON.move}`} />
                                       <span>نقل إلى دفعة أخرى</span>
                                     </button>
                                   )}
@@ -1210,10 +1211,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   {/* Reactivate Button */}
                                   <button
                                     onClick={() => setMemberToReactivate(u)}
-                                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold ${ACTION_TONE.reactivate} flex items-center gap-1.5 transition shadow-2xs cursor-pointer`}
                                     title="إعادة تفعيل العضو وإعادته للمقرأة"
                                   >
-                                    <RotateCcw className="w-3.5 h-3.5 text-emerald-700" />
+                                    <RotateCcw className={`w-3.5 h-3.5 ${ACTION_ICON.reactivate}`} />
                                     <span>إعادة التفعيل</span>
                                   </button>
 
@@ -1223,10 +1224,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                       setMemberToDeleteCompletely(u);
                                       setDeleteConfirmationText('');
                                     }}
-                                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1.5 transition shadow-2xs"
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold ${ACTION_TONE.delete} flex items-center gap-1.5 transition shadow-2xs`}
                                     title="حذف نهائي للعضو وسجلاته بلا رجعة"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                    <Trash2 className={`w-3.5 h-3.5 ${ACTION_ICON.delete}`} />
                                     <span>حذف نهائي</span>
                                   </button>
                                 </div>
@@ -1884,7 +1885,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   isDeletingMember
                 }
                 onClick={handleConfirmDeleteMemberCompletely}
-                className="px-5 py-2 text-xs font-bold text-white bg-rose-700 hover:bg-rose-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-xs transition flex items-center gap-1.5"
+                className={`px-5 py-2 text-xs font-bold text-white ${CONFIRM_TONE.delete} disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-xs transition flex items-center gap-1.5`}
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>{isDeletingMember ? 'جاري الحذف...' : 'تأكيد الحذف النهائي الآن'}</span>
@@ -1975,7 +1976,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     setIsExcluding(false);
                   }
                 }}
-                className="px-5 py-2 text-xs font-bold text-white bg-amber-700 hover:bg-amber-800 disabled:opacity-50 rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                className={`px-5 py-2 text-xs font-bold text-white ${CONFIRM_TONE.exclude} disabled:opacity-50 rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer`}
               >
                 <UserMinus className="w-3.5 h-3.5" />
                 <span>{isExcluding ? 'جاري الإقصاء...' : 'تأكيد إقصاء العضو'}</span>
