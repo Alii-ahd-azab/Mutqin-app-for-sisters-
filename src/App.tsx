@@ -189,6 +189,12 @@ const MainApp: React.FC = () => {
     await loadAppData();
   };
 
+  const handleMoveMember = async (id: string, destinationBatchId: string) => {
+    const res = await api.adminMoveMemberBatch(id, destinationBatchId);
+    await loadAppData();
+    return res.message;
+  };
+
   const handleAddRestDay = async (payload: { date: string; note: string }) => {
     await api.adminAddRestDay(requireSelectedBatch(), payload);
     await loadAppData();
@@ -313,6 +319,7 @@ const MainApp: React.FC = () => {
               revisions={revisions}
               onAddMember={handleAddMember}
               onUpdateMember={handleUpdateMember}
+              onMoveMember={handleMoveMember}
               onAccountsChanged={loadAppData}
               onAddRestDay={handleAddRestDay}
               onDeleteRestDay={handleDeleteRestDay}

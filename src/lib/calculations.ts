@@ -799,6 +799,26 @@ export interface MemberRevisionStatus {
 
 
 /**
+ * Calendar date (YYYY-MM-DD) on which a
+ * member joined her current batch, from
+ * the membership's joined_at timestamp.
+ */
+export function joinedOnDateFromTimestamp(
+  joinedAt?: string | null
+): string | undefined {
+  if (!joinedAt) {
+    return undefined;
+  }
+
+  const parsed = new Date(joinedAt);
+
+  return Number.isNaN(parsed.getTime())
+    ? undefined
+    : formatDate(parsed);
+}
+
+
+/**
  * REVIEW LOGIC
  *
  * Every active program day has one
@@ -808,13 +828,21 @@ export interface MemberRevisionStatus {
  * Only PAST days count toward delay.
  * Today's unfinished review does not
  * count as a missed past day yet.
+ *
+ * JOIN DATE (new and moved members):
+ * revision days BEFORE the member joined
+ * her current batch are not owed at all.
+ * (Tasmi'a is different: the batch's
+ * whole Tasmi'a backlog stays owed — see
+ * calculateMemberRequiredQuarter.)
  */
 export function calculateMemberRevisionStatus(
   memberId: string,
   activeCycleDates: string[],
   revisionLogs: RevisionLog[],
   todayDateStr: string =
-    formatDate()
+    formatDate(),
+  joinedOnDate?: string
 ): MemberRevisionStatus {
   const memberLogs =
     revisionLogs.filter(
@@ -842,6 +870,14 @@ export function calculateMemberRevisionStatus(
   ) {
     if (
       reviewedDates.has(date)
+    ) {
+      continue;
+    }
+
+    // Before she joined this batch: not owed.
+    if (
+      joinedOnDate &&
+      date < joinedOnDate
     ) {
       continue;
     }

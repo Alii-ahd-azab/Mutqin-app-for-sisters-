@@ -10,6 +10,7 @@ import {
   formatArabicDateWithDayName,
   getPreLaunchMessage,
   calculateListenersLeaderboard,
+  joinedOnDateFromTimestamp,
 } from '../lib/calculations';
 import { api } from '../api/client';
 import {
@@ -42,12 +43,14 @@ import {
   Layers,
   Crown,
   Pencil,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { AdminMemberModal } from './AdminMemberModal';
 import { CelebrationBanner, RestDayBanner, PauseBanner } from './Banners';
 import { DailyThoughtEditor } from './DailyThoughtEditor';
 import { AdminAccountsManager } from './AdminAccountsManager';
 import { EditMemberModal } from './EditMemberModal';
+import { MoveMemberModal } from './MoveMemberModal';
 
 interface AdminDashboardProps {
   currentUser: User;
@@ -61,6 +64,8 @@ interface AdminDashboardProps {
   revisions: RevisionLog[];
   onAddMember: (payload: NewAccountPayload) => Promise<void>;
   onUpdateMember: (id: string, payload: AdminAccountUpdate) => Promise<void>;
+  // Moves a member to another batch (server determines her current batch)
+  onMoveMember: (id: string, destinationBatchId: string) => Promise<string>;
   // Reload the batch data after admin permissions change
   onAccountsChanged: () => void;
   onAddRestDay: (payload: { date: string; note: string }) => Promise<void>;
@@ -89,6 +94,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   revisions,
   onAddMember,
   onUpdateMember,
+  onMoveMember,
   onAccountsChanged,
   onAddRestDay,
   onDeleteRestDay,
@@ -116,6 +122,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Edit member (name / phone / password) — applied by the admin-users Edge Function
   const [memberToEdit, setMemberToEdit] = useState<User | null>(null);
+
+  // Move member to another batch — applied by the admin-users Edge Function
+  const [memberToMove, setMemberToMove] = useState<User | null>(null);
+  const canMoveMembers = accessibleBatches.length > 1;
   const [isReactivating, setIsReactivating] = useState(false);
 
   const [showPauseModal, setShowPauseModal] = useState(false);
@@ -203,7 +213,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         m.id,
         activeCycleDates,
         revisions,
-        cycleInfo.today_date
+        cycleInfo.today_date,
+        joinedOnDateFromTimestamp(m.batch_joined_at)
       );
 
       const missedQuartersCount = quarterStatus.pastMissedQuartersCount;
@@ -1059,6 +1070,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 </button>
                               )}
 
+                              {/* Move member to another batch */}
+                              {u.role === 'member' && canMoveMembers && (
+                                <button
+                                  onClick={() => setMemberToMove(u)}
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 flex items-center gap-1 transition cursor-pointer whitespace-nowrap"
+                                  title="نقل العضوة إلى دفعة أخرى مع الاحتفاظ بسجلها"
+                                >
+                                  <ArrowLeftRight className="w-3.5 h-3.5 text-stone-500" />
+                                  <span>نقل إلى دفعة أخرى</span>
+                                </button>
+                              )}
+
                               {/* Exclude member button (for non-admin members) */}
                               {u.id !== currentUser.id && u.role === 'member' && (
                                 <button
@@ -1205,6 +1228,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                     <Pencil className="w-3.5 h-3.5 text-stone-500" />
                                     <span>تعديل</span>
                                   </button>
+
+                                  {/* Move member to another batch */}
+                                  {canMoveMembers && (
+                                    <button
+                                      onClick={() => setMemberToMove(u)}
+                                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 flex items-center gap-1.5 transition shadow-2xs cursor-pointer whitespace-nowrap"
+                                      title="نقل العضوة إلى دفعة أخرى مع الاحتفاظ بسجلها"
+                                    >
+                                      <ArrowLeftRight className="w-3.5 h-3.5 text-stone-500" />
+                                      <span>نقل إلى دفعة أخرى</span>
+                                    </button>
+                                  )}
 
                                   {/* Reactivate Button */}
                                   <button
@@ -1737,6 +1772,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           await onUpdateMember(memberToEdit.id, payload);
           setActionFeedbackMsg(`تم تحديث بيانات العضوة "${newName}" بنجاح.`);
           setTimeout(() => setActionFeedbackMsg(''), 4000);
+        }}
+      />
+
+      {/* Move Member Modal */}
+      <MoveMemberModal
+        member={memberToMove}
+        currentBatch={batch}
+        batches={accessibleBatches}
+        onClose={() => setMemberToMove(null)}
+        onSubmit={async (destinationBatchId) => {
+          if (!memberToMove) return;
+          const message = await onMoveMember(memberToMove.id, destinationBatchId);
+          setActionFeedbackMsg(message);
+          setTimeout(() => setActionFeedbackMsg(''), 5000);
         }}
       />
 

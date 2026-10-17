@@ -121,7 +121,13 @@ type RevisionRow = {
 
 type MembershipWithProfileRow = {
   membership_role: 'member' | 'admin';
+  joined_at: string;
   profile: ProfileRow | null;
+};
+
+type HistoryNameRow = {
+  id: string;
+  full_name: string;
 };
 
 type AdminMembershipRow = {
@@ -292,7 +298,7 @@ async function getBatchUsers(
       supabase
         .from('batch_memberships')
         .select(
-          `membership_role, profile:profiles!batch_memberships_user_id_fkey(${PROFILE_COLUMNS})`
+          `membership_role, joined_at, profile:profiles!batch_memberships_user_id_fkey(${PROFILE_COLUMNS})`
         )
         .eq('batch_id', batchId),
       supabase
@@ -312,10 +318,17 @@ async function getBatchUsers(
 
   const byId = new Map<string, ProfileRow>();
 
+  // When each MEMBER joined this batch (revision debt starts here).
+  const joinedAtById = new Map<string, string>();
+
   for (const row of (membershipsResult.data ||
     []) as unknown as MembershipWithProfileRow[]) {
     if (row.profile) {
       byId.set(row.profile.id, row.profile);
+
+      if (row.membership_role === 'member') {
+        joinedAtById.set(row.profile.id, row.joined_at);
+      }
     }
   }
 
@@ -328,7 +341,66 @@ async function getBatchUsers(
     .sort((a, b) =>
       a.created_at.localeCompare(b.created_at)
     )
-    .map(mapProfile);
+    .map((row) => ({
+      ...mapProfile(row),
+      batch_joined_at: joinedAtById.get(row.id),
+    }));
+}
+
+
+/*
+ * Display names for everyone appearing in
+ * a cycle's history rows. People who have
+ * since moved to another batch (or whose
+ * profile the caller can no longer read)
+ * are resolved through a names-only RPC,
+ * so their old rows keep their name.
+ */
+async function buildNameMap(
+  cycleId: string,
+  users: User[],
+  recitationRows: RecitationRow[],
+  revisionRows: RevisionRow[]
+): Promise<Map<string, string>> {
+  const names = new Map(
+    users.map((user) => [user.id, user.name])
+  );
+
+  const missing = new Set<string>();
+
+  for (const row of recitationRows) {
+    if (!names.has(row.user_id)) missing.add(row.user_id);
+    if (row.listener_id && !names.has(row.listener_id)) {
+      missing.add(row.listener_id);
+    }
+  }
+
+  for (const row of revisionRows) {
+    if (!names.has(row.user_id)) missing.add(row.user_id);
+  }
+
+  if (missing.size === 0) {
+    return names;
+  }
+
+  const { data, error } = await supabase.rpc(
+    'history_member_names',
+    { p_cycle_id: cycleId }
+  );
+
+  // Names are cosmetic: never fail the dashboard over them.
+  if (error) {
+    console.error('history_member_names failed:', error);
+    return names;
+  }
+
+  for (const row of (data || []) as HistoryNameRow[]) {
+    if (!names.has(row.id)) {
+      names.set(row.id, row.full_name);
+    }
+  }
+
+  return names;
 }
 
 
@@ -582,22 +654,15 @@ async function getRecitationRows(
 function mapRecitations(
   cycle: CycleRow,
   rows: RecitationRow[],
-  users: User[]
+  names: Map<string, string>
 ): RecitationLog[] {
-  const userMap = new Map(
-    users.map((user) => [
-      user.id,
-      user,
-    ])
-  );
-
   return rows.map((row) => {
-    const member =
-      userMap.get(row.user_id);
+    const memberName =
+      names.get(row.user_id);
 
-    const listener =
+    const listenerName =
       row.listener_id
-        ? userMap.get(row.listener_id)
+        ? names.get(row.listener_id)
         : undefined;
 
     const submittedDate =
@@ -609,14 +674,14 @@ function mapRecitations(
       id: row.id,
       member_id: row.user_id,
       member_name:
-        member?.name || 'عضو',
+        memberName || 'عضو',
       listener_id:
         row.listener_id || undefined,
       // The name at recitation time; still shown after the
       // listener's account is deleted or renamed.
       listener_name:
         row.listener_name_snapshot ||
-        listener?.name,
+        listenerName,
       quarter_number:
         row.quarter_number,
       cycle_number:
@@ -630,7 +695,7 @@ function mapRecitations(
       reciter_id:
         row.user_id,
       reciter_name:
-        member?.name || 'عضو',
+        memberName || 'عضو',
     };
   });
 }
@@ -668,17 +733,10 @@ async function getRevisionRows(
 function mapRevisions(
   cycle: CycleRow,
   rows: RevisionRow[],
-  users: User[],
+  names: Map<string, string>,
   settings: GroupSettings,
   restDays: RestDay[]
 ): RevisionLog[] {
-  const userMap = new Map(
-    users.map((user) => [
-      user.id,
-      user,
-    ])
-  );
-
   const activeDates =
     getActiveCycleDates(
       cycle.starts_on,
@@ -688,8 +746,8 @@ function mapRevisions(
     );
 
   return rows.map((row) => {
-    const member =
-      userMap.get(row.user_id);
+    const memberName =
+      names.get(row.user_id);
 
     const historicalDate =
       activeDates[
@@ -704,7 +762,7 @@ function mapRevisions(
       member_id:
         row.user_id,
       member_name:
-        member?.name || 'عضو',
+        memberName || 'عضو',
       date:
         historicalDate,
       cycle_number:
@@ -786,18 +844,26 @@ async function buildBootstrap(
       today
     );
 
+  const names =
+    await buildNameMap(
+      cycle.id,
+      users,
+      recitationRows,
+      revisionRows
+    );
+
   const recitations =
     mapRecitations(
       cycle,
       recitationRows,
-      users
+      names
     );
 
   const revisions =
     mapRevisions(
       cycle,
       revisionRows,
-      users,
+      names,
       settings,
       restDays
     );
@@ -1445,6 +1511,37 @@ export const api = {
           batchesByUser.get(row.id) || [],
       })),
     };
+  },
+
+
+  /*
+   * Moves a member to another batch. The
+   * server determines her current batch,
+   * checks permissions on both batches and
+   * moves only her current membership.
+   */
+  async adminMoveMemberBatch(
+    userId: string,
+    destinationBatchId: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    if (!destinationBatchId) {
+      throw new Error(
+        'يرجى اختيار الدفعة الجديدة'
+      );
+    }
+
+    return invokeFunction(
+      'admin-users',
+      {
+        action: 'move-member-batch',
+        user_id: userId,
+        destination_batch_id: destinationBatchId,
+      },
+      'تعذر نقل العضوة. حاول مرة أخرى.'
+    );
   },
 
 

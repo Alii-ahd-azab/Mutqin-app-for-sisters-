@@ -1055,6 +1055,146 @@ Deno.serve(async (req) => {
 
     /*
      * =================================
+     * MOVE MEMBER TO ANOTHER BATCH
+     * =================================
+     *
+     * Same Auth user / profile / UUID.
+     * Only the CURRENT membership moves;
+     * old recitations and revisions stay
+     * on the old batch's cycles.
+     */
+    if (action === 'move-member-batch') {
+      const userId =
+        String(
+          body.user_id || '',
+        );
+
+      if (!isUuid(userId)) {
+        return json(
+          {
+            error:
+              'معرف العضو مطلوب',
+          },
+          400,
+        );
+      }
+
+      const target =
+        await loadProfile(admin, userId);
+
+      if (target.role !== 'member') {
+        return json(
+          {
+            error:
+              'يمكن نقل حسابات العضوات فقط',
+          },
+          400,
+        );
+      }
+
+      /*
+       * The source batch always comes from
+       * the database, never from the client.
+       */
+      const sourceBatchId =
+        await getMemberBatchId(admin, userId);
+
+      if (!sourceBatchId) {
+        console.error(
+          'admin-users move: member has no batch membership',
+          { userId },
+        );
+
+        return json(
+          {
+            error:
+              'العضوة غير مرتبطة بأي دفعة. يرجى التواصل مع الدعم الفني.',
+          },
+          409,
+        );
+      }
+
+      if (!canManageBatch(caller, sourceBatchId)) {
+        return json(
+          {
+            error:
+              'لا تملكين صلاحية إدارة دفعة هذه العضوة',
+          },
+          403,
+        );
+      }
+
+      /*
+       * Destination: must exist, be active,
+       * and be managed by the caller.
+       */
+      const destination =
+        await requireManagedBatch(
+          admin,
+          caller,
+          body.destination_batch_id,
+        );
+
+      if (destination.id === sourceBatchId) {
+        return json(
+          {
+            error:
+              'العضوة موجودة بالفعل في هذه الدفعة',
+          },
+          400,
+        );
+      }
+
+      const {
+        error: moveError,
+      } =
+        await admin.rpc(
+          'move_member_batch',
+          {
+            p_user_id: userId,
+            p_destination_batch_id: destination.id,
+            p_expected_source_batch_id: sourceBatchId,
+            p_actor: caller.id,
+          },
+        );
+
+      if (moveError) {
+        console.error(
+          'admin-users move failed',
+          {
+            userId,
+            sourceBatchId,
+            destinationBatchId: destination.id,
+            code: moveError.code,
+            message: moveError.message,
+            details: moveError.details,
+          },
+        );
+
+        // Messages raised by move_member_batch are Arabic and safe to show.
+        const isOurMessage =
+          moveError.code === 'P0002' ||
+          moveError.code === '23514';
+
+        return json(
+          {
+            error: isOurMessage
+              ? moveError.message
+              : 'تعذر نقل العضوة. حاول مرة أخرى.',
+          },
+          isOurMessage ? 400 : 500,
+        );
+      }
+
+      return json({
+        success: true,
+        message:
+          `تم نقل العضوة «${target.full_name}» إلى «${destination.name}» بنجاح`,
+      });
+    }
+
+    /*
+     * =================================
      * SET BATCH ADMIN ASSIGNMENTS
      * (master admin only)
      * =================================

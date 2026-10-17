@@ -9,6 +9,7 @@ import {
   formatArabicDateWithDayName,
   getPreLaunchMessage,
   calculateCycleInfo,
+  joinedOnDateFromTimestamp,
 } from '../lib/calculations';
 import {
   BookOpen,
@@ -117,15 +118,27 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
     );
   }, [cycleInfo.start_date, cycleInfo.today_date, restDays, settings]);
 
+  // When she joined her current batch (from the batch's member list,
+  // since the auth profile does not carry membership data).
+  const joinedOnDate = useMemo(
+    () =>
+      joinedOnDateFromTimestamp(
+        allMembers.find((m) => m.id === currentUser.id)?.batch_joined_at
+      ),
+    [allMembers, currentUser.id]
+  );
+
   // Personal revision status for current user
+  // (revision days before she joined this batch are not owed)
   const userRevisionStatus = useMemo(() => {
     return calculateMemberRevisionStatus(
       currentUser.id,
       activeCycleDates,
       revisions,
-      cycleInfo.today_date
+      cycleInfo.today_date,
+      joinedOnDate
     );
-  }, [currentUser.id, activeCycleDates, revisions, cycleInfo.today_date]);
+  }, [currentUser.id, activeCycleDates, revisions, cycleInfo.today_date, joinedOnDate]);
 
   const pastMissedQuartersCount = userQuarterStatus.pastMissedQuartersCount;
   const pastMissedRevisionDaysCount = userRevisionStatus.pastMissedRevisionDaysCount;

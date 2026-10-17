@@ -11,6 +11,9 @@ export interface User {
   created_at: string;
   auth_uid?: string;
   is_master_admin?: boolean;
+  // When this member joined her CURRENT batch (ISO timestamp).
+  // Revision debt is counted from this date; Tasmi'a debt is not.
+  batch_joined_at?: string;
 }
 
 export interface Batch {
