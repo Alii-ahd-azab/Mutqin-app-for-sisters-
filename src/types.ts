@@ -1,20 +1,17 @@
-export type UserRole = 'member' | 'admin';
+import type {
+  UserRole,
+  User,
+  GroupSettings,
+  RestDay,
+  RecitationLog,
+  RevisionLog,
+  CycleInfo,
+} from '../supabase/functions/_shared/logic/programTypes.ts';
+
+// Core program types live in the shared folder so the Edge Functions use the same definitions.
+export type { UserRole, User, GroupSettings, RestDay, RecitationLog, RevisionLog, CycleInfo };
 
 export type MembershipRole = 'member' | 'admin';
-
-export interface User {
-  id: string;
-  name: string;
-  phone: string;
-  role: UserRole;
-  is_active: boolean;
-  created_at: string;
-  auth_uid?: string;
-  is_master_admin?: boolean;
-  // When this member joined her CURRENT batch (ISO timestamp).
-  // Revision debt is counted from this date; Tasmi'a debt is not.
-  batch_joined_at?: string;
-}
 
 export interface Batch {
   id: string;
@@ -62,78 +59,6 @@ export interface NewAccountPayload {
   batch_ids?: string[]; // role === 'admin' && !is_master_admin
 }
 
-export interface GroupSettings {
-  id: string;
-  start_date: string; // ISO date YYYY-MM-DD
-  total_quarters: number; // 240
-  review_window: number; // 8
-  current_cycle_number: number;
-  is_paused: boolean;
-  paused_at: string | null; // ISO date YYYY-MM-DD
-  total_paused_days: number;
-  daily_thought?: string; // HTML formatted thought of the day
-  daily_thought_updated_at?: string; // ISO date string
-  daily_thought_updated_by?: string; // Admin display name
-}
-
-export interface RestDay {
-  id: string;
-  date: string; // YYYY-MM-DD
-  note: string;
-  added_by_admin_id: string;
-  added_by_name?: string;
-  created_at: string;
-}
-
-export interface RecitationLog {
-  id: string;
-  member_id: string;
-  member_name: string;
-  listener_id?: string;
-  listener_name?: string;
-  quarter_number: number;
-  cycle_number: number;
-  date: string; // YYYY-MM-DD
-  notes?: string;
-  created_at: string;
-  // Legacy aliases for backwards compatibility
-  reciter_id?: string;
-  reciter_name?: string;
-}
-
-export interface RevisionLog {
-  id: string;
-  member_id: string;
-  member_name: string;
-  date: string; // YYYY-MM-DD
-  cycle_number: number;
-  review_start_quarter: number;
-  review_end_quarter: number;
-  notes?: string;
-  created_at: string;
-}
-
-export interface CycleInfo {
-  has_started: boolean;
-  days_until_start: number;
-  cycle_day: number; // 1 to 240 (or 0 if not started)
-  quarter_of_day: number; // 1 to 240 (or 0 if not started)
-  review_start: number;
-  review_end: number;
-  review_count: number;
-  is_rest_day: boolean;
-  rest_day_note?: string;
-  is_paused: boolean;
-  paused_at?: string | null;
-  is_completed: boolean;
-  days_elapsed: number;
-  rest_days_count: number;
-  paused_days_count: number;
-  start_date: string;
-  current_cycle_number: number;
-  today_date: string;
-}
-
 export interface MemberDailyStatus {
   user: User;
   has_recited: boolean;
@@ -162,4 +87,118 @@ export interface BatchBootstrap {
   revisions: RevisionLog[];
   todayRecitations: RecitationLog[];
   todayRevisions: RevisionLog[];
+  // Peer tests of the cycle (members only receive live ones via RLS)
+  peerTests: PeerTest[];
+  // Attempts the user may see (members: their own as candidate/examiner)
+  peerTestAttempts: PeerTestAttempt[];
+}
+
+// ============ PEER TESTING (اختبار الزملاء) ============
+
+export type PeerTestType = 'mandatory' | 'recommended';
+export type PeerTestDifficulty = 'any' | 'easy' | 'medium' | 'hard' | 'mixed';
+export type PeerTestStatus = 'draft' | 'published' | 'hidden' | 'finished';
+export type PeerTestVisibility = 'draft' | 'now' | 'hidden' | 'schedule';
+
+export interface PeerTest {
+  id: string;
+  cycle_id: string;
+  title: string;
+  range_start: number;
+  range_end: number;
+  questions_count: number;
+  lines_per_question: number;
+  max_errors: number | null;
+  test_type: PeerTestType;
+  difficulty: PeerTestDifficulty;
+  status: PeerTestStatus;
+  visible_from: string | null;
+  visible_until: string | null;
+  created_at: string;
+  updated_at: string;
+  finished_at: string | null;
+}
+
+export type PeerTestAttemptStatus = 'in_progress' | 'passed' | 'failed' | 'cancelled';
+
+export interface PeerTestAttempt {
+  id: string;
+  test_id: string;
+  candidate_id: string;
+  candidate_name_snapshot: string;
+  examiner_id: string | null;
+  examiner_name_snapshot: string;
+  status: PeerTestAttemptStatus;
+  total_errors: number | null;
+  max_errors_snapshot: number | null;
+  notes: string | null;
+  attempt_date: string;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface PeerTestAttemptQuestion {
+  attempt_id: string;
+  question_number: number;
+  start_surah: number;
+  start_surah_name: string;
+  start_ayah: number;
+  end_surah: number;
+  end_surah_name: string;
+  end_ayah: number;
+  start_page: number;
+  start_line: number;
+  end_page: number;
+  end_line: number;
+  actual_lines: number;
+  difficulty_level: 'easy' | 'medium' | 'hard' | null;
+  errors_count: number | null;
+  notes: string | null;
+}
+
+// A question as generated by the server for a live session (with ayah text).
+export interface PeerTestQuestion {
+  question_number: number;
+  start_surah: number;
+  start_surah_name: string;
+  start_ayah: number;
+  start_text: string;
+  start_page: number;
+  start_line: number;
+  end_surah: number;
+  end_surah_name: string;
+  end_ayah: number;
+  end_text: string;
+  end_page: number;
+  end_line: number;
+  target_lines: number;
+  actual_lines: number;
+  difficulty_level: 'easy' | 'medium' | 'hard';
+  difficulty_score: number;
+}
+
+export interface PeerTestCandidate {
+  id: string;
+  name: string;
+  is_eligible: boolean;
+  reasons: string[];
+  has_passed: boolean;
+  missing_quarters: number;
+  is_eliminable: boolean;
+}
+
+export interface PeerTestSaveInput {
+  batch_id: string;
+  test_id?: string;
+  title: string;
+  range_start: number;
+  range_end: number;
+  questions_count: number;
+  lines_per_question: number;
+  max_errors: number | null;
+  test_type: PeerTestType;
+  difficulty: PeerTestDifficulty;
+  visibility: PeerTestVisibility;
+  visible_from: string | null;
+  visible_until: string | null;
 }

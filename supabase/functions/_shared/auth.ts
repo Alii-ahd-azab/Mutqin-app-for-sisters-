@@ -82,21 +82,14 @@ export function createAdminClient(): SupabaseClient {
   );
 }
 
-export type AdminCaller = {
-  id: string;
-  isMaster: boolean;
-  managedBatchIds: Set<string>;
-};
-
 /*
- * Verifies the caller's session and that
- * they are an ACTIVE ADMIN, then loads
- * which batches they manage.
+ * Verifies the Bearer token and returns the
+ * authenticated user's id.
  */
-export async function getAdminCaller(
+async function authenticateRequest(
   req: Request,
   admin: SupabaseClient,
-): Promise<AdminCaller> {
+): Promise<string> {
   const authHeader =
     req.headers.get('Authorization');
 
@@ -125,7 +118,26 @@ export async function getAdminCaller(
     );
   }
 
-  const callerId = authData.user.id;
+  return authData.user.id;
+}
+
+export type AdminCaller = {
+  id: string;
+  isMaster: boolean;
+  managedBatchIds: Set<string>;
+};
+
+/*
+ * Verifies the caller's session and that
+ * they are an ACTIVE ADMIN, then loads
+ * which batches they manage.
+ */
+export async function getAdminCaller(
+  req: Request,
+  admin: SupabaseClient,
+): Promise<AdminCaller> {
+  const callerId =
+    await authenticateRequest(req, admin);
 
   const {
     data: profile,
@@ -330,4 +342,81 @@ export function errorResponse(
     },
     500,
   );
+}
+
+export type ActiveCaller = {
+  id: string;
+  role: 'member' | 'admin';
+  isMaster: boolean;
+  managedBatchIds: Set<string>;
+  // The member's current batch (null for admins).
+  memberBatchId: string | null;
+};
+
+/*
+ * Verifies the session of ANY active account
+ * (member or admin) and loads its batch scope.
+ * Used by features where members act too
+ * (e.g. peer testing examiners).
+ */
+export async function getActiveCaller(
+  req: Request,
+  admin: SupabaseClient,
+): Promise<ActiveCaller> {
+  const callerId =
+    await authenticateRequest(req, admin);
+
+  const {
+    data: profile,
+    error: profileError,
+  } = await admin
+    .from('profiles')
+    .select('id, role, active, is_master_admin')
+    .eq('id', callerId)
+    .single();
+
+  if (profileError || !profile || profile.active !== true) {
+    throw new HttpError(
+      'الحساب غير نشط أو غير موجود',
+      403,
+    );
+  }
+
+  const role: 'member' | 'admin' =
+    profile.role === 'admin' ? 'admin' : 'member';
+
+  const isMaster =
+    role === 'admin' && profile.is_master_admin === true;
+
+  const managedBatchIds = new Set<string>();
+  let memberBatchId: string | null = null;
+
+  const {
+    data: memberships,
+    error: membershipsError,
+  } = await admin
+    .from('batch_memberships')
+    .select('batch_id, membership_role')
+    .eq('user_id', callerId);
+
+  if (membershipsError) {
+    throw new HttpError(membershipsError.message, 500);
+  }
+
+  for (const row of memberships || []) {
+    if (role === 'admin' && row.membership_role === 'admin') {
+      managedBatchIds.add(row.batch_id);
+    }
+    if (role === 'member' && row.membership_role === 'member') {
+      memberBatchId = row.batch_id;
+    }
+  }
+
+  return {
+    id: callerId,
+    role,
+    isMaster,
+    managedBatchIds,
+    memberBatchId,
+  };
 }

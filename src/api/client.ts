@@ -9,6 +9,12 @@ import {
   RestDay,
   RecitationLog,
   RevisionLog,
+  PeerTest,
+  PeerTestAttempt,
+  PeerTestAttemptQuestion,
+  PeerTestCandidate,
+  PeerTestQuestion,
+  PeerTestSaveInput,
 } from '../types';
 
 import { supabase } from '../lib/supabase';
@@ -17,6 +23,8 @@ import {
   formatDate,
   calculateCycleInfo,
   getActiveCycleDates,
+  buildProgramSettings,
+  revisionDateForProgramDay,
 } from '../lib/calculations';
 
 import { phoneToAuthEmail } from '../lib/authHelpers';
@@ -178,7 +186,7 @@ function requireBatchId(
  * body in error.context).
  */
 async function invokeFunction<T>(
-  name: 'admin-users' | 'admin-actions',
+  name: 'admin-users' | 'admin-actions' | 'peer-tests',
   body: Record<string, unknown>,
   fallbackMessage: string
 ): Promise<T> {
@@ -218,6 +226,43 @@ async function invokeFunction<T>(
   }
 
   return data as T;
+}
+
+
+/*
+ * PostgREST returns at most 1000 rows per
+ * request, so long histories are read in
+ * pages until the last (short) page.
+ */
+const ROWS_PAGE_SIZE = 1000;
+
+async function fetchAllRows<T>(
+  fetchPage: (
+    from: number,
+    to: number
+  ) => PromiseLike<{
+    data: unknown[] | null;
+    error: unknown;
+  }>
+): Promise<T[]> {
+  const rows: T[] = [];
+
+  for (let from = 0; ; from += ROWS_PAGE_SIZE) {
+    const { data, error } = await fetchPage(
+      from,
+      from + ROWS_PAGE_SIZE - 1
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    rows.push(...((data || []) as T[]));
+
+    if (!data || data.length < ROWS_PAGE_SIZE) {
+      return rows;
+    }
+  }
 }
 
 
@@ -470,31 +515,6 @@ async function getPauseRows(
 }
 
 
-function dayDifference(
-  startDate: string,
-  endDate: string
-): number {
-  const start = Date.parse(
-    `${startDate}T00:00:00Z`
-  );
-
-  const end = Date.parse(
-    `${endDate}T00:00:00Z`
-  );
-
-  if (
-    Number.isNaN(start) ||
-    Number.isNaN(end) ||
-    end <= start
-  ) {
-    return 0;
-  }
-
-  return Math.floor(
-    (end - start) /
-      (1000 * 60 * 60 * 24)
-  );
-}
 
 
 function buildSettings(
@@ -503,35 +523,8 @@ function buildSettings(
   latestThought?: ThoughtRow | null,
   publisherName?: string
 ): GroupSettings {
-  const currentPause =
-    pauses.find(
-      (pause) => pause.resumed_on === null
-    ) || null;
-
-  const completedPauseDays =
-    pauses.reduce((total, pause) => {
-      if (!pause.resumed_on) {
-        return total;
-      }
-
-      return (
-        total +
-        dayDifference(
-          pause.paused_on,
-          pause.resumed_on
-        )
-      );
-    }, 0);
-
   return {
-    id: cycle.id,
-    start_date: cycle.starts_on,
-    total_quarters: 240,
-    review_window: 8,
-    current_cycle_number: cycle.cycle_number,
-    is_paused: !!currentPause,
-    paused_at: currentPause?.paused_on || null,
-    total_paused_days: completedPauseDays,
+    ...buildProgramSettings(cycle, pauses),
     daily_thought: latestThought?.content_html || '',
     daily_thought_updated_at:
       latestThought?.published_at,
@@ -624,30 +617,30 @@ async function getProgramState(
 async function getRecitationRows(
   cycleId: string
 ): Promise<RecitationRow[]> {
-  const { data, error } = await supabase
-    .from('tasmia_submissions')
-    .select(
-      `
-      id,
-      cycle_id,
-      user_id,
-      listener_id,
-      listener_name_snapshot,
-      quarter_number,
-      notes,
-      submitted_at
-      `
-    )
-    .eq('cycle_id', cycleId)
-    .order('submitted_at', {
-      ascending: true,
-    });
-
-  if (error) {
-    throw error;
-  }
-
-  return (data || []) as RecitationRow[];
+  return fetchAllRows<RecitationRow>((from, to) =>
+    supabase
+      .from('tasmia_submissions')
+      .select(
+        `
+        id,
+        cycle_id,
+        user_id,
+        listener_id,
+        listener_name_snapshot,
+        quarter_number,
+        notes,
+        submitted_at
+        `
+      )
+      .eq('cycle_id', cycleId)
+      .order('submitted_at', {
+        ascending: true,
+      })
+      .order('id', {
+        ascending: true,
+      })
+      .range(from, to)
+  );
 }
 
 
@@ -704,29 +697,29 @@ function mapRecitations(
 async function getRevisionRows(
   cycleId: string
 ): Promise<RevisionRow[]> {
-  const { data, error } = await supabase
-    .from('review_confirmations')
-    .select(
-      `
-      id,
-      cycle_id,
-      user_id,
-      program_day,
-      start_quarter,
-      end_quarter,
-      confirmed_at
-      `
-    )
-    .eq('cycle_id', cycleId)
-    .order('program_day', {
-      ascending: true,
-    });
-
-  if (error) {
-    throw error;
-  }
-
-  return (data || []) as RevisionRow[];
+  return fetchAllRows<RevisionRow>((from, to) =>
+    supabase
+      .from('review_confirmations')
+      .select(
+        `
+        id,
+        cycle_id,
+        user_id,
+        program_day,
+        start_quarter,
+        end_quarter,
+        confirmed_at
+        `
+      )
+      .eq('cycle_id', cycleId)
+      .order('program_day', {
+        ascending: true,
+      })
+      .order('id', {
+        ascending: true,
+      })
+      .range(from, to)
+  );
 }
 
 
@@ -750,12 +743,11 @@ function mapRevisions(
       names.get(row.user_id);
 
     const historicalDate =
-      activeDates[
-        row.program_day - 1
-      ] ||
-      String(
+      revisionDateForProgramDay(
+        activeDates,
+        row.program_day,
         row.confirmed_at
-      ).slice(0, 10);
+      );
 
     return {
       id: row.id,
@@ -779,6 +771,53 @@ function mapRevisions(
 
 
 /*
+ * Peer tests of one cycle. RLS returns all of
+ * them to the batch's admins and only the LIVE
+ * one(s) to the batch's members.
+ */
+async function getPeerTestsForCycle(
+  cycleId: string
+): Promise<PeerTest[]> {
+  const { data, error } = await supabase
+    .from('peer_tests')
+    .select('*')
+    .eq('cycle_id', cycleId)
+    .order('created_at', {
+      ascending: false,
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || []) as PeerTest[];
+}
+
+async function getPeerTestAttemptsForTests(
+  testIds: string[]
+): Promise<PeerTestAttempt[]> {
+  if (testIds.length === 0) {
+    return [];
+  }
+
+  return fetchAllRows<PeerTestAttempt>((from, to) =>
+    supabase
+      .from('peer_test_attempts')
+      .select('*')
+      .in('test_id', testIds)
+      .neq('status', 'cancelled')
+      .order('created_at', {
+        ascending: false,
+      })
+      .order('id', {
+        ascending: true,
+      })
+      .range(from, to)
+  );
+}
+
+
+/*
  * Loads everything one batch's
  * dashboard needs, in a single pass.
  */
@@ -798,13 +837,20 @@ async function buildBootstrap(
     latestThought,
     recitationRows,
     revisionRows,
+    peerTests,
   ] = await Promise.all([
     getRestDayRows(cycle.id),
     getPauseRows(cycle.id),
     getLatestThought(batchId),
     getRecitationRows(cycle.id),
     getRevisionRows(cycle.id),
+    getPeerTestsForCycle(cycle.id),
   ]);
+
+  const peerTestAttempts =
+    await getPeerTestAttemptsForTests(
+      peerTests.map((t) => t.id)
+    );
 
   const userMap = new Map(
     users.map((user) => [
@@ -885,6 +931,8 @@ async function buildBootstrap(
       revisions.filter(
         (item) => item.date === today
       ),
+    peerTests,
+    peerTestAttempts,
   };
 }
 
@@ -2003,6 +2051,160 @@ export const api = {
             )
         ),
     };
+  },
+
+
+  /*
+   * ============ PEER TESTING ============
+   * Reads use RLS; every write goes through
+   * the peer-tests Edge Function, which
+   * re-checks all rules server-side.
+   */
+  async getPeerTests(
+    cycleId: string
+  ): Promise<{ tests: PeerTest[] }> {
+    return {
+      tests: await getPeerTestsForCycle(cycleId),
+    };
+  },
+
+
+  async getPeerTestAttempts(
+    testIds: string[]
+  ): Promise<{ attempts: PeerTestAttempt[] }> {
+    return {
+      attempts:
+        await getPeerTestAttemptsForTests(testIds),
+    };
+  },
+
+
+  async getPeerTestAttemptQuestions(
+    attemptId: string
+  ): Promise<{ questions: PeerTestAttemptQuestion[] }> {
+    const { data, error } = await supabase
+      .from('peer_test_attempt_questions')
+      .select('*')
+      .eq('attempt_id', attemptId)
+      .order('question_number', {
+        ascending: true,
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    return {
+      questions:
+        (data || []) as PeerTestAttemptQuestion[],
+    };
+  },
+
+
+  async peerTestCandidates(
+    testId: string
+  ): Promise<{ candidates: PeerTestCandidate[] }> {
+    return invokeFunction(
+      'peer-tests',
+      { action: 'candidates', test_id: testId },
+      'تعذر تحميل قائمة الأخوات.'
+    );
+  },
+
+
+  async peerTestStart(
+    testId: string,
+    candidateId: string
+  ): Promise<{
+    attempt_id: string;
+    candidate: { id: string; name: string };
+    questions: PeerTestQuestion[];
+  }> {
+    return invokeFunction(
+      'peer-tests',
+      {
+        action: 'start',
+        test_id: testId,
+        candidate_id: candidateId,
+      },
+      'تعذر بدء الاختبار.'
+    );
+  },
+
+
+  async peerTestSubmit(payload: {
+    attempt_id: string;
+    errors: number[];
+    question_notes: string[];
+    notes?: string;
+  }): Promise<{
+    attempt: PeerTestAttempt;
+    message: string;
+  }> {
+    return invokeFunction(
+      'peer-tests',
+      { action: 'submit', ...payload },
+      'تعذر اعتماد نتيجة الاختبار.'
+    );
+  },
+
+
+  async adminSavePeerTest(
+    payload: PeerTestSaveInput
+  ): Promise<{
+    test: PeerTest;
+    versioned: boolean;
+    message: string;
+  }> {
+    return invokeFunction(
+      'peer-tests',
+      { action: 'admin-save', ...payload },
+      'تعذر حفظ الاختبار.'
+    );
+  },
+
+
+  async adminSetPeerTestStatus(
+    testId: string,
+    statusAction: 'show' | 'hide' | 'finish'
+  ): Promise<{
+    test: PeerTest;
+    message: string;
+  }> {
+    return invokeFunction(
+      'peer-tests',
+      {
+        action: 'admin-status',
+        test_id: testId,
+        status_action: statusAction,
+      },
+      'تعذر تحديث حالة الاختبار.'
+    );
+  },
+
+
+  async adminPreviewPeerTest(
+    testId: string
+  ): Promise<{ questions: PeerTestQuestion[] }> {
+    return invokeFunction(
+      'peer-tests',
+      { action: 'admin-preview', test_id: testId },
+      'تعذر توليد عيّنة الأسئلة.'
+    );
+  },
+
+
+  async adminPeerTestImpact(
+    testId: string
+  ): Promise<{
+    blocked_count: number;
+    blocked_members: { id: string; name: string }[];
+  }> {
+    return invokeFunction(
+      'peer-tests',
+      { action: 'admin-impact', test_id: testId },
+      'تعذر حساب أثر الاختبار.'
+    );
   },
 
 

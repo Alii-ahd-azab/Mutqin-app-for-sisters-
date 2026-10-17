@@ -1,4 +1,5 @@
-import quartersJson from './quranQuarters.json';
+// Shared with the Edge Functions (single copy of the quarter boundaries).
+import quartersJson from '../../supabase/functions/_shared/data/quranQuarters.json';
 
 export interface QuarterDetail {
   number: number;

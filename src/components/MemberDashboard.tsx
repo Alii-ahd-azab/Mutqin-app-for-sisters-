@@ -1,5 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { User, CycleInfo, RecitationLog, RevisionLog, GroupSettings, RestDay } from '../types';
+import { User, CycleInfo, RecitationLog, RevisionLog, GroupSettings, RestDay, PeerTest, PeerTestAttempt } from '../types';
+import { isPeerTestLive } from '../lib/peerTests';
+import { PeerTestCard } from './PeerTestCard';
+import { PeerTestingModal } from './PeerTestingModal';
 import { getQuarterInfo, getQuarterBounds, getRangeBounds } from '../data/quranData';
 import {
   calculateMemberRequiredQuarter,
@@ -10,6 +13,7 @@ import {
   getPreLaunchMessage,
   calculateCycleInfo,
   joinedOnDateFromTimestamp,
+  SEVERE_DELAY_THRESHOLD,
 } from '../lib/calculations';
 import {
   BookOpen,
@@ -60,6 +64,9 @@ interface MemberDashboardProps {
   allMembers: User[];
   recitations: RecitationLog[];
   revisions: RevisionLog[];
+  // Live peer test(s) of her batch and her own peer-test attempts
+  peerTests?: PeerTest[];
+  peerTestAttempts?: PeerTestAttempt[];
   onRecordRecitation: (payload: {
     quarter_number: number;
     listener_id: string;
@@ -79,12 +86,15 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   allMembers,
   recitations,
   revisions,
+  peerTests = [],
+  peerTestAttempts = [],
   onRecordRecitation,
   onRecordRevision,
   onRefresh,
   loading,
 }) => {
   const [isRecitationModalOpen, setIsRecitationModalOpen] = useState(false);
+  const [isPeerTestOpen, setIsPeerTestOpen] = useState(false);
   const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
   const [activeRevisionIndex, setActiveRevisionIndex] = useState<number>(0);
   const [selectedRevisionTarget, setSelectedRevisionTarget] = useState<RevisionDayItem | null>(null);
@@ -144,6 +154,24 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   const pastMissedRevisionDaysCount = userRevisionStatus.pastMissedRevisionDaysCount;
 
   const isAllCaughtUp = userQuarterStatus.allCompletedUpToToday;
+
+  // Peer testing: the batch's live test, her pass, and the mandatory block
+  // (mirrors the database rule that rejects Tasmi'a beyond the range).
+  const liveTest = peerTests.find((t) => isPeerTestLive(t)) || null;
+  const hasPassedLiveTest = Boolean(
+    liveTest &&
+      peerTestAttempts.some(
+        (a) => a.test_id === liveTest.id && a.candidate_id === currentUser.id && a.status === 'passed'
+      )
+  );
+  const nextQuarterToRecite = isAllCaughtUp ? cycleInfo.quarter_of_day + 1 : userQuarterStatus.requiredQuarter;
+  const isBlockedByPeerTest = Boolean(
+    liveTest &&
+      liveTest.test_type === 'mandatory' &&
+      !hasPassedLiveTest &&
+      cycleInfo.has_started &&
+      nextQuarterToRecite > liveTest.range_end
+  );
   const currentRecitationQuarterNum = isAllCaughtUp
     ? cycleInfo.quarter_of_day
     : userQuarterStatus.requiredQuarter;
@@ -342,6 +370,16 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
         updatedBy={settings?.daily_thought_updated_by}
       />
 
+      {/* Peer Testing (اختبار الزميلات): live test of her batch */}
+      {liveTest && currentUser.is_active && (
+        <PeerTestCard
+          test={liveTest}
+          hasPassed={hasPassedLiveTest}
+          isBlocked={isBlockedByPeerTest}
+          onStart={() => setIsPeerTestOpen(true)}
+        />
+      )}
+
       {/* Celebration banner if day >= 240 */}
       {cycleInfo.is_completed && (
         <CelebrationBanner currentCycle={cycleInfo.current_cycle_number} isAdmin={false} />
@@ -388,7 +426,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
               <h3 className="font-bold text-sm text-amber-950">
                 تنبيه بوجود أوراد متأخرة يلزم استدراكها
               </h3>
-              {(pastMissedQuartersCount >= 3 || pastMissedRevisionDaysCount >= 3) ? (
+              {(pastMissedQuartersCount >= SEVERE_DELAY_THRESHOLD || pastMissedRevisionDaysCount >= SEVERE_DELAY_THRESHOLD) ? (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-200 text-rose-900 border border-rose-300">
                   تأخر حرج (يلزم الاستدراك لتجنب الإقصاء)
                 </span>
@@ -817,12 +855,14 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
             <button
               id="open-recitation-modal-btn"
               onClick={() => {
-                if (!currentUser.is_active) return;
+                if (!currentUser.is_active || isBlockedByPeerTest) return;
                 setIsRecitationModalOpen(true);
               }}
-              disabled={isAllCaughtUp || !currentUser.is_active}
+              disabled={isAllCaughtUp || !currentUser.is_active || isBlockedByPeerTest}
               className={`w-full py-3.5 px-4 rounded-2xl font-bold text-sm shadow-sm transition flex items-center justify-center gap-2 ${
                 !currentUser.is_active
+                  ? 'bg-rose-50 text-rose-700 border border-rose-200 cursor-not-allowed'
+                  : isBlockedByPeerTest
                   ? 'bg-rose-50 text-rose-700 border border-rose-200 cursor-not-allowed'
                   : isAllCaughtUp
                   ? 'bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed'
@@ -835,6 +875,11 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
                 <>
                   <UserX className="w-4 h-4" />
                   <span>حسابك مُقصَى حاليًا — لا يمكن تسجيل التسميع</span>
+                </>
+              ) : isBlockedByPeerTest ? (
+                <>
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>مطلوب اجتياز الاختبار الإلزامي أولاً لمواصلة التسميع</span>
                 </>
               ) : (
                 <>
@@ -886,6 +931,16 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
       </div>
 
       {/* Modals */}
+      {liveTest && (
+        <PeerTestingModal
+          isOpen={isPeerTestOpen}
+          onClose={() => setIsPeerTestOpen(false)}
+          currentUser={currentUser}
+          test={liveTest}
+          onCompleted={onRefresh}
+        />
+      )}
+
       <RecitationModal
         isOpen={isRecitationModalOpen}
         onClose={() => setIsRecitationModalOpen(false)}

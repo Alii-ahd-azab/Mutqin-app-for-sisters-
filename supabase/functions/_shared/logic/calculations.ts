@@ -1,11 +1,14 @@
-import {
+// Shared business logic: used by the web app (re-exported from
+// src/lib/calculations.ts) AND by the Edge Functions, so both always
+// apply the exact same rules. Pure TypeScript only (no DOM/Deno APIs).
+import type {
   CycleInfo,
   GroupSettings,
   RestDay,
   RevisionLog,
   RecitationLog,
   User,
-} from '../types';
+} from './programTypes.ts';
 
 /**
  * Format a Date object to YYYY-MM-DD.
@@ -18,7 +21,7 @@ export function formatDate(
 ): string {
   try {
     if (
-      typeof window !== 'undefined' &&
+      typeof (globalThis as { window?: unknown }).window !== 'undefined' &&
       !timeZone
     ) {
       const year = date.getFullYear();

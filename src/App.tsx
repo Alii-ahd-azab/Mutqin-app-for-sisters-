@@ -12,6 +12,8 @@ import {
   CycleInfo,
   GroupSettings,
   NewAccountPayload,
+  PeerTest,
+  PeerTestAttempt,
   RestDay,
   User,
   RecitationLog,
@@ -56,6 +58,8 @@ const MainApp: React.FC = () => {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [recitations, setRecitations] = useState<RecitationLog[]>([]);
   const [revisions, setRevisions] = useState<RevisionLog[]>([]);
+  const [peerTests, setPeerTests] = useState<PeerTest[]>([]);
+  const [peerTestAttempts, setPeerTestAttempts] = useState<PeerTestAttempt[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
 
@@ -70,6 +74,8 @@ const MainApp: React.FC = () => {
     setAllUsers([]);
     setRecitations([]);
     setRevisions([]);
+    setPeerTests([]);
+    setPeerTestAttempts([]);
   }, []);
 
   // Resolve which batches this account can open (the server/RLS decides).
@@ -127,6 +133,8 @@ const MainApp: React.FC = () => {
       setAllUsers(bootstrapRes.users);
       setRecitations(bootstrapRes.recitations);
       setRevisions(bootstrapRes.revisions);
+      setPeerTests(bootstrapRes.peerTests);
+      setPeerTestAttempts(bootstrapRes.peerTestAttempts);
     } catch (err: any) {
       if (requestId !== loadRequestRef.current) return;
       console.error('Error fetching app data:', err);
@@ -342,6 +350,8 @@ const MainApp: React.FC = () => {
               allMembers={allUsers}
               recitations={recitations}
               revisions={revisions}
+              peerTests={peerTests}
+              peerTestAttempts={peerTestAttempts}
               onRecordRecitation={handleRecordRecitation}
               onRecordRevision={handleRecordRevision}
               onRefresh={loadAppData}

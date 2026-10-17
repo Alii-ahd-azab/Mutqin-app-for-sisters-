@@ -6,11 +6,11 @@ import {
   getCurrentWeekRange,
   getHijriDate,
   getActiveCycleDates,
-  calculateMemberRevisionStatus,
   formatArabicDateWithDayName,
   getPreLaunchMessage,
   calculateListenersLeaderboard,
   joinedOnDateFromTimestamp,
+  computeMemberDelayStatus,
 } from '../lib/calculations';
 import { api } from '../api/client';
 import {
@@ -48,6 +48,7 @@ import { AdminMemberModal } from './AdminMemberModal';
 import { CelebrationBanner, RestDayBanner, PauseBanner } from './Banners';
 import { DailyThoughtEditor } from './DailyThoughtEditor';
 import { AdminAccountsManager } from './AdminAccountsManager';
+import { AdminPeerTestsTab } from './AdminPeerTestsTab';
 import { BatchAdminActions } from './BatchAdminActions';
 import { ACTION_TONE, ACTION_ICON, CONFIRM_TONE } from './actionButtonStyles';
 import { EditMemberModal } from './EditMemberModal';
@@ -108,7 +109,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onRefresh,
   loading,
 }) => {
-  const [activeTab, setActiveTab] = useState<'today' | 'members' | 'stats' | 'settings'>('today');
+  const [activeTab, setActiveTab] = useState<'today' | 'members' | 'stats' | 'peer' | 'settings'>('today');
   const [membersSubTab, setMembersSubTab] = useState<'active' | 'excluded'>('active');
   const [memberToDeleteCompletely, setMemberToDeleteCompletely] = useState<User | null>(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
@@ -200,28 +201,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         (r) => r.member_id === m.id && r.date === cycleInfo.today_date
       );
 
-      const quarterStatus = calculateMemberRequiredQuarter(
-        m.id,
-        cycleInfo.quarter_of_day,
-        recitations
-      );
-
-      const revStatus = calculateMemberRevisionStatus(
-        m.id,
+      // Single shared definition of delay / «مؤهلة للإقصاء» (also used server-side)
+      const delay = computeMemberDelayStatus({
+        memberId: m.id,
+        quarterOfDay: cycleInfo.quarter_of_day,
         activeCycleDates,
+        recitations,
         revisions,
-        cycleInfo.today_date,
-        joinedOnDateFromTimestamp(m.batch_joined_at)
-      );
+        todayDate: cycleInfo.today_date,
+        joinedOnDate: joinedOnDateFromTimestamp(m.batch_joined_at),
+      });
 
-      const missedQuartersCount = quarterStatus.pastMissedQuartersCount;
-      const missedRevisionDaysCount = revStatus.pastMissedRevisionDaysCount;
-      const isSeverelyBehindRecitation = missedQuartersCount >= 3;
-      const isSeverelyBehindRevision = missedRevisionDaysCount >= 3;
-      const isSeverelyBehind = isSeverelyBehindRecitation || isSeverelyBehindRevision;
-      const severeReasons: ('recitation' | 'revision')[] = [];
-      if (isSeverelyBehindRecitation) severeReasons.push('recitation');
-      if (isSeverelyBehindRevision) severeReasons.push('revision');
+      const {
+        missedQuartersCount,
+        missedRevisionDaysCount,
+        isSeverelyBehindRecitation,
+        isSeverelyBehindRevision,
+        isSeverelyBehind,
+        severeReasons,
+      } = delay;
 
       const totalRecitations = recitations.filter(
         (r) => r.member_id === m.id || r.reciter_id === m.id
@@ -241,11 +239,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         recitationNotes: todayRecs.map((r) => r.notes).filter(Boolean).join(' | '),
         hasReviewed: !!todayRev,
         revisionNotes: todayRev?.notes,
-        requiredQuarter: quarterStatus.requiredQuarter,
-        isBehind: quarterStatus.isBehind,
-        isAllCaughtUp: quarterStatus.allCompletedUpToToday,
+        requiredQuarter: delay.requiredQuarter,
+        isBehind: delay.isBehind,
+        isAllCaughtUp: delay.allCompletedUpToToday,
         missedQuartersCount,
-        missedQuarters: quarterStatus.pastMissedQuarters,
+        missedQuarters: delay.missedQuarters,
         missedRevisionDaysCount,
         isSeverelyBehindRecitation,
         isSeverelyBehindRevision,
@@ -531,7 +529,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {cycleInfo.is_rest_day && <RestDayBanner note={cycleInfo.rest_day_note} />}
 
       {/* Main Tabs Navigation */}
-      <div className="flex bg-pink-50/60 p-1.5 rounded-2xl gap-1 text-xs font-bold border border-pink-100">
+      <div className="grid grid-cols-2 sm:grid-cols-5 bg-pink-50/60 p-1.5 rounded-2xl gap-1 text-xs font-bold border border-pink-100">
         <button
           onClick={() => setActiveTab('today')}
           className={`flex-1 py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition ${
@@ -566,6 +564,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         >
           <BarChart3 className="w-4 h-4 text-rose-600" />
           <span>الإحصائيات الميدانية</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('peer')}
+          className={`flex-1 py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition ${
+            activeTab === 'peer'
+              ? 'bg-white text-rose-950 shadow-sm border border-pink-200'
+              : 'text-stone-600 hover:text-stone-900'
+          }`}
+        >
+          <Award className="w-4 h-4 text-rose-600" />
+          <span>اختبار الزميلات</span>
         </button>
 
         <button
@@ -1521,6 +1531,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* =================================================================== */}
       {/* TAB 4: الإعدادات والإيقاف (SETTINGS & PAUSE) */}
       {/* =================================================================== */}
+      {/* =================================================================== */}
+      {/* TAB: اختبار الزميلات (PEER TESTING) */}
+      {/* =================================================================== */}
+      {activeTab === 'peer' && (
+        <AdminPeerTestsTab batch={batch} cycleId={settings.id} onChanged={onRefresh} />
+      )}
+
       {activeTab === 'settings' && (
         <div className="space-y-6">
           {/* Section: خاطرة اليوم (Daily Thought Editor) */}
