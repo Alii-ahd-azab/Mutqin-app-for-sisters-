@@ -27,6 +27,10 @@ export const PeerTestingModal: React.FC<PeerTestingModalProps> = ({ isOpen, onCl
   const [questionNotes, setQuestionNotes] = useState<string[]>([]);
   const [overallNotes, setOverallNotes] = useState('');
   const [expanded, setExpanded] = useState<number | null>(0);
+  // Examiner's own tracking of asked questions (local only, never submitted).
+  // A done question stays done; "revealed" only lifts the dimming while it is open.
+  const [doneQuestions, setDoneQuestions] = useState<boolean[]>([]);
+  const [revealedQuestions, setRevealedQuestions] = useState<boolean[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [result, setResult] = useState<PeerTestAttempt | null>(null);
@@ -39,6 +43,8 @@ export const PeerTestingModal: React.FC<PeerTestingModalProps> = ({ isOpen, onCl
     setQuestionNotes([]);
     setOverallNotes('');
     setExpanded(0);
+    setDoneQuestions([]);
+    setRevealedQuestions([]);
   };
 
   const loadCandidates = async () => {
@@ -76,6 +82,8 @@ export const PeerTestingModal: React.FC<PeerTestingModalProps> = ({ isOpen, onCl
       setQuestions(res.questions);
       setErrors(new Array(res.questions.length).fill(0));
       setQuestionNotes(new Array(res.questions.length).fill(''));
+      setDoneQuestions(new Array(res.questions.length).fill(false));
+      setRevealedQuestions(new Array(res.questions.length).fill(false));
       setExpanded(0);
     } catch (err: any) {
       setErrorMsg(err?.message || 'تعذر بدء الاختبار');
@@ -92,6 +100,22 @@ export const PeerTestingModal: React.FC<PeerTestingModalProps> = ({ isOpen, onCl
       return next;
     });
   };
+
+  const setFlag = (setter: React.Dispatch<React.SetStateAction<boolean[]>>, idx: number, value: boolean) => {
+    setter((prev) => {
+      const next = [...prev];
+      next[idx] = value;
+      return next;
+    });
+  };
+
+  // First press marks the question done and dims it. There is no undo.
+  const markQuestionDone = (idx: number) => {
+    setFlag(setDoneQuestions, idx, true);
+    setFlag(setRevealedQuestions, idx, false);
+  };
+
+  const doneCount = doneQuestions.filter(Boolean).length;
 
   const totalErrors = errors.reduce((sum, e) => sum + (e || 0), 0);
   const hasMax = test.max_errors !== null;
@@ -287,8 +311,20 @@ export const PeerTestingModal: React.FC<PeerTestingModalProps> = ({ isOpen, onCl
                 <div className="py-12 text-center text-xs text-stone-400">جاري توليد أسئلة الاختبار من مصحف المدينة...</div>
               ) : (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-stone-700">الأسئلة المولّدة ({questions.length} أسئلة):</span>
+                  <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-stone-700">الأسئلة المولّدة ({questions.length} أسئلة):</span>
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border ${
+                          questions.length > 0 && doneCount === questions.length
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : 'bg-stone-100 text-stone-600 border-stone-200'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-3 h-3" />
+                        تم سؤال {doneCount} من {questions.length}
+                      </span>
+                    </div>
                     <span className="text-stone-500 text-[11px]">
                       مجموع الأخطاء حتى الآن: <strong className="font-mono text-stone-900">{totalErrors}</strong>
                     </span>
@@ -298,17 +334,35 @@ export const PeerTestingModal: React.FC<PeerTestingModalProps> = ({ isOpen, onCl
                     const isOpen = expanded === idx;
                     const count = errors[idx] || 0;
                     const level = PEER_LEVEL_STYLES[q.difficulty_level];
+                    const isDone = Boolean(doneQuestions[idx]);
+                    // Done cards are dimmed unless the examiner has reopened one to look at it again.
+                    const isDimmed = isDone && !(isOpen && revealedQuestions[idx]);
                     return (
-                      <div key={q.question_number} className="rounded-2xl border border-stone-200 bg-white overflow-hidden shadow-2xs">
+                      <div
+                        key={q.question_number}
+                        // Any click on a done card lifts its dimming; the click itself still goes through.
+                        onClickCapture={() => {
+                          if (isDone && !revealedQuestions[idx]) setFlag(setRevealedQuestions, idx, true);
+                        }}
+                        className={`rounded-2xl border overflow-hidden shadow-2xs transition ${
+                          isDimmed ? 'border-emerald-100 bg-stone-50/60' : isDone ? 'border-emerald-200 bg-white' : 'border-stone-200 bg-white'
+                        }`}
+                      >
                         <div
                           onClick={() => setExpanded(isOpen ? null : idx)}
-                          className="p-3.5 bg-stone-50 hover:bg-stone-100/80 cursor-pointer flex items-center justify-between gap-3 text-xs select-none"
+                          className={`p-3.5 cursor-pointer flex items-center justify-between gap-3 text-xs select-none ${
+                            isDimmed ? 'bg-stone-50/40 hover:bg-stone-100/60' : 'bg-stone-50 hover:bg-stone-100/80'
+                          }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="w-6 h-6 rounded-full bg-rose-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                            <span
+                              className={`w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 ${
+                                isDone ? 'bg-emerald-600' : 'bg-rose-600'
+                              }`}
+                            >
                               {q.question_number}
                             </span>
-                            <div className="space-y-0.5 min-w-0">
+                            <div className={`space-y-0.5 min-w-0 transition-opacity ${isDimmed ? 'opacity-60' : ''}`}>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-bold text-stone-900">
                                   السؤال {q.question_number}: {q.start_surah_name} [آية {q.start_ayah}] ⟵ {q.end_surah_name} [آية {q.end_ayah}]
@@ -325,7 +379,24 @@ export const PeerTestingModal: React.FC<PeerTestingModalProps> = ({ isOpen, onCl
                               </span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3 shrink-0">
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isDone ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                تم السؤال
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markQuestionDone(idx);
+                                }}
+                                className="px-2 py-0.5 rounded-full text-[11px] font-bold text-pink-700 bg-white border border-pink-200 hover:bg-pink-50 transition cursor-pointer"
+                              >
+                                تم السؤال
+                              </button>
+                            )}
                             <span
                               className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
                                 count === 0 ? 'bg-green-50 text-green-700' : 'bg-rose-50 text-rose-700'
@@ -338,7 +409,11 @@ export const PeerTestingModal: React.FC<PeerTestingModalProps> = ({ isOpen, onCl
                         </div>
 
                         {isOpen && (
-                          <div className="p-4 space-y-4 border-t border-stone-100 bg-white">
+                          <div
+                            className={`p-4 space-y-4 border-t border-stone-100 transition-opacity ${
+                              isDimmed ? 'bg-stone-50/40 opacity-60' : 'bg-white'
+                            }`}
+                          >
                             <div className="space-y-2 p-3.5 rounded-xl bg-pink-50/50 border border-pink-100">
                               <p className="text-[11px] text-rose-900 font-bold">
                                 اطلبي من الأخت التلاوة من بداية هذه الآية حتى نهاية الآية المحددة:
