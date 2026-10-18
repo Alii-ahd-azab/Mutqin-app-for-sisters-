@@ -3,7 +3,7 @@ import { PeerTest, PeerTestAttempt, PeerTestCandidate, PeerTestQuestion, User } 
 import { api } from '../api/client';
 import { PEER_LEVEL_STYLES } from '../lib/peerTests';
 import { TestConditionsCard } from './TestConditionsCard';
-import { Award, Users, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, ArrowRight, X } from 'lucide-react';
+import { Award, Users, Check, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, ArrowRight, X } from 'lucide-react';
 
 interface PeerTestingModalProps {
   isOpen: boolean;
@@ -116,13 +116,17 @@ export const PeerTestingModal: React.FC<PeerTestingModalProps> = ({ isOpen, onCl
   };
 
   const doneCount = doneQuestions.filter(Boolean).length;
+  // The examiner must mark every question asked before submitting (UI workflow only).
+  const allQuestionsDone = questions.length > 0 && doneCount === questions.length;
+  const remainingCount = questions.length - doneCount;
+  const showProgress = Boolean(selected) && !result && !loadingQuestions && questions.length > 0;
 
   const totalErrors = errors.reduce((sum, e) => sum + (e || 0), 0);
   const hasMax = test.max_errors !== null;
   const wouldPass = !hasMax || totalErrors <= (test.max_errors ?? 0);
 
   const handleSubmit = async () => {
-    if (!attemptId || submitting) return;
+    if (!attemptId || submitting || !allQuestionsDone) return;
     setSubmitting(true);
     setErrorMsg('');
     try {
@@ -151,9 +155,9 @@ export const PeerTestingModal: React.FC<PeerTestingModalProps> = ({ isOpen, onCl
       <div className="bg-white rounded-3xl border border-stone-200 max-w-2xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] flex flex-col text-stone-900">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 border-b border-stone-100 pb-4 shrink-0">
-          <div className="space-y-1">
+          <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-rose-50 text-rose-600">
+              <span className="p-2 rounded-xl bg-rose-50 text-rose-600 shrink-0">
                 <Award className="w-5 h-5" />
               </span>
               <h3 className="font-bold text-lg text-stone-900">اختبار الزميلات (Peer Testing)</h3>
@@ -163,9 +167,29 @@ export const PeerTestingModal: React.FC<PeerTestingModalProps> = ({ isOpen, onCl
               أسئلة ({test.lines_per_question} أسطر لكل سؤال)
             </p>
           </div>
-          <button onClick={handleClose} className="p-2 text-stone-400 hover:text-stone-700 rounded-xl hover:bg-stone-100 transition">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {showProgress && (
+              <span
+                id="peer-test-progress"
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${
+                  allQuestionsDone
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                    : 'bg-rose-50 text-rose-800 border-rose-200'
+                }`}
+              >
+                {allQuestionsDone && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
+                <span>
+                  تم سؤال {doneCount} من {questions.length}
+                </span>
+                {!allQuestionsDone && (
+                  <span className="hidden sm:inline font-medium text-rose-700/80">· متبقي {remainingCount}</span>
+                )}
+              </span>
+            )}
+            <button onClick={handleClose} className="p-2 text-stone-400 hover:text-stone-700 rounded-xl hover:bg-stone-100 transition">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Body */}
@@ -311,20 +335,8 @@ export const PeerTestingModal: React.FC<PeerTestingModalProps> = ({ isOpen, onCl
                 <div className="py-12 text-center text-xs text-stone-400">جاري توليد أسئلة الاختبار من مصحف المدينة...</div>
               ) : (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-stone-700">الأسئلة المولّدة ({questions.length} أسئلة):</span>
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border ${
-                          questions.length > 0 && doneCount === questions.length
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : 'bg-stone-100 text-stone-600 border-stone-200'
-                        }`}
-                      >
-                        <CheckCircle2 className="w-3 h-3" />
-                        تم سؤال {doneCount} من {questions.length}
-                      </span>
-                    </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-stone-700">الأسئلة المولّدة ({questions.length} أسئلة):</span>
                     <span className="text-stone-500 text-[11px]">
                       مجموع الأخطاء حتى الآن: <strong className="font-mono text-stone-900">{totalErrors}</strong>
                     </span>
@@ -381,8 +393,8 @@ export const PeerTestingModal: React.FC<PeerTestingModalProps> = ({ isOpen, onCl
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             {isDone ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                                 تم السؤال
                               </span>
                             ) : (
@@ -392,8 +404,9 @@ export const PeerTestingModal: React.FC<PeerTestingModalProps> = ({ isOpen, onCl
                                   e.stopPropagation();
                                   markQuestionDone(idx);
                                 }}
-                                className="px-2 py-0.5 rounded-full text-[11px] font-bold text-pink-700 bg-white border border-pink-200 hover:bg-pink-50 transition cursor-pointer"
+                                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-xs ring-1 ring-rose-700/20 transition cursor-pointer"
                               >
+                                <Check className="w-3.5 h-3.5" />
                                 تم السؤال
                               </button>
                             )}
@@ -515,24 +528,39 @@ export const PeerTestingModal: React.FC<PeerTestingModalProps> = ({ isOpen, onCl
 
         {/* Footer */}
         {selected && !result && (
-          <div className="border-t border-stone-100 pt-4 flex items-center justify-between gap-3 shrink-0">
-            <button
-              type="button"
-              onClick={resetSession}
-              disabled={submitting}
-              className="px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-xl text-xs font-bold disabled:opacity-50"
-            >
-              رجوع لاختيار أخت أخرى
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={submitting || loadingQuestions || !attemptId}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-700 hover:to-rose-600 text-white font-bold text-xs shadow-xs transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>{submitting ? 'جاري الإرسال...' : 'إرسال واعتماد نتيجة الاختبار'}</span>
-            </button>
+          <div className="border-t border-stone-100 pt-4 space-y-3 shrink-0">
+            {showProgress && !allQuestionsDone && (
+              <p
+                id="peer-test-submit-warning"
+                className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-800 flex items-center gap-1.5"
+              >
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                <span>يجب إنهاء جميع الأسئلة قبل إرسال النتيجة (متبقي {remainingCount})</span>
+              </p>
+            )}
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={resetSession}
+                disabled={submitting}
+                className="px-4 py-2 text-stone-600 hover:bg-stone-100 rounded-xl text-xs font-bold disabled:opacity-50"
+              >
+                رجوع لاختيار أخت أخرى
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={submitting || loadingQuestions || !attemptId || !allQuestionsDone}
+                className={`px-6 py-2.5 rounded-xl font-bold text-xs transition flex items-center gap-2 ${
+                  allQuestionsDone
+                    ? 'bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-700 hover:to-rose-600 text-white shadow-xs cursor-pointer disabled:opacity-50'
+                    : 'bg-stone-200 text-stone-500 border border-stone-300 cursor-not-allowed'
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{submitting ? 'جاري الإرسال...' : 'إرسال واعتماد نتيجة الاختبار'}</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
