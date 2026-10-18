@@ -181,6 +181,24 @@ const MainApp: React.FC = () => {
     await loadAppData();
   };
 
+  const handleCorrectListener = async (submissionId: string, newListenerId: string) => {
+    const res = await api.correctRecitationListener(submissionId, newListenerId);
+    // Show the corrected listener right away, then refresh everything.
+    setRecitations((prev) =>
+      prev.map((r) =>
+        r.id === res.id
+          ? {
+              ...r,
+              listener_id: res.listener_id,
+              listener_name: res.listener_name_snapshot,
+              listener_changed_at: res.listener_changed_at,
+            }
+          : r
+      )
+    );
+    loadAppData();
+  };
+
   const handleRecordRevision = async (payload: { notes?: string; date?: string }) => {
     await api.recordRevision(requireSelectedBatch(), payload);
     await loadAppData();
@@ -353,6 +371,7 @@ const MainApp: React.FC = () => {
               peerTests={peerTests}
               peerTestAttempts={peerTestAttempts}
               onRecordRecitation={handleRecordRecitation}
+              onCorrectListener={handleCorrectListener}
               onRecordRevision={handleRecordRevision}
               onRefresh={loadAppData}
               loading={dataLoading}

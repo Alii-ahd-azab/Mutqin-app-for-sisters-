@@ -1,20 +1,51 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { RecitationLog, RevisionLog, User } from '../types';
 import { getQuarterInfo } from '../data/quranData';
-import { CheckCircle2, Calendar, MessageSquare, BookMarked, Check, UserCheck, Headphones } from 'lucide-react';
+import { CheckCircle2, Calendar, MessageSquare, BookMarked, Check, UserCheck, Headphones, Pencil } from 'lucide-react';
+import { CorrectListenerModal } from './Modals';
+
+// Mirrors the database rule: one listener correction within 12 hours of submitting.
+const LISTENER_EDIT_WINDOW_MS = 12 * 60 * 60 * 1000;
 
 interface MemberHistoryViewProps {
   currentUser: User;
   recitations: RecitationLog[];
   revisions: RevisionLog[];
+  peerMembers: User[];
+  onCorrectListener: (submissionId: string, newListenerId: string) => Promise<void>;
 }
 
 export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
   currentUser,
   recitations,
   revisions,
+  peerMembers,
+  onCorrectListener,
 }) => {
   const [activeTab, setActiveTab] = useState<'recitations' | 'revisions' | 'listening'>('recitations');
+  const [editingRecitation, setEditingRecitation] = useState<RecitationLog | null>(null);
+  const [successMsg, setSuccessMsg] = useState('');
+  // Re-evaluated every minute so the edit action disappears when the window closes
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!successMsg) return;
+    const timer = window.setTimeout(() => setSuccessMsg(''), 4000);
+    return () => window.clearTimeout(timer);
+  }, [successMsg]);
+
+  const canCorrectListener = (rec: RecitationLog) =>
+    !rec.listener_changed_at && now <= new Date(rec.created_at).getTime() + LISTENER_EDIT_WINDOW_MS;
+
+  const handleCorrectListener = async (submissionId: string, newListenerId: string) => {
+    await onCorrectListener(submissionId, newListenerId);
+    setSuccessMsg('تم تعديل المستمعة بنجاح');
+  };
 
   // Logs of the current user
   const myRecitations = recitations.filter(
@@ -72,6 +103,13 @@ export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
         </button>
       </div>
 
+      {successMsg && (
+        <div className="mx-4 mt-3 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
       {/* Content list */}
       <div className="p-4 divide-y divide-stone-100 max-h-[380px] overflow-y-auto">
         {activeTab === 'listening' ? (
@@ -83,7 +121,7 @@ export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
                 </div>
                 <div>
                   <span className="font-bold text-emerald-950 block">
-                    إجمالي جلسات الاستماع لزملائك منذ بداية الدورة
+                    إجمالي جلسات الاستماع لزميلاتك منذ بداية الدورة
                   </span>
                   <span className="text-[11px] text-emerald-800">
                     شكر الله سعيك في إعانة أخواتك على التسميع والتثبيت
@@ -94,7 +132,7 @@ export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
 
             {myListeningSessions.length === 0 ? (
               <div className="text-center py-8 text-stone-400 text-xs">
-                لم تسجل أي جلسة استماع لزملائك بعد. عندما يختارك زملاؤك كمستمع لهم عند تسجيل تسميعهم، ستظهر جميع الجلسات هنا.
+                لم تُسَجَّل أي جلسة استماع لزملائك بعد. عندما يختارك زملاؤك كمستمعة لهم عند تسجيل تسميعهم، ستظهر جميع الجلسات هنا.
               </div>
             ) : (
               <div className="divide-y divide-stone-100">
@@ -190,10 +228,26 @@ export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
                   </div>
 
                   {rec.listener_name && (
-                    <p className="text-[11px] text-stone-600 flex items-center gap-1">
+                    <div className="text-[11px] text-stone-600 flex items-center gap-1.5 flex-wrap">
                       <UserCheck className="w-3 h-3 text-stone-400" />
                       <span>الزميل المستمع: <strong>{rec.listener_name}</strong></span>
-                    </p>
+                      {rec.listener_changed_at ? (
+                        <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-stone-100 text-stone-500 border border-stone-200">
+                          تم تعديل المستمعة مسبقًا
+                        </span>
+                      ) : (
+                        canCorrectListener(rec) && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingRecitation(rec)}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold text-pink-700 bg-pink-50 border border-pink-200 hover:bg-pink-100 transition cursor-pointer"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            تعديل المستمعة
+                          </button>
+                        )
+                      )}
+                    </div>
                   )}
 
                   {rec.notes && (
@@ -213,6 +267,13 @@ export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
           })
         )}
       </div>
+
+      <CorrectListenerModal
+        recitation={editingRecitation}
+        onClose={() => setEditingRecitation(null)}
+        onSubmit={handleCorrectListener}
+        members={peerMembers}
+      />
     </div>
   );
 };

@@ -112,6 +112,8 @@ type RecitationRow = {
   listener_id: string | null;
   // listener's name at the time of the recitation (set by the database)
   listener_name_snapshot: string | null;
+  // set when the member used her one listener correction
+  listener_changed_at: string | null;
   quarter_number: number;
   notes: string | null;
   submitted_at: string;
@@ -627,6 +629,7 @@ async function getRecitationRows(
         user_id,
         listener_id,
         listener_name_snapshot,
+        listener_changed_at,
         quarter_number,
         notes,
         submitted_at
@@ -675,6 +678,8 @@ function mapRecitations(
       listener_name:
         row.listener_name_snapshot ||
         listenerName,
+      listener_changed_at:
+        row.listener_changed_at || undefined,
       quarter_number:
         row.quarter_number,
       cycle_number:
@@ -1231,6 +1236,43 @@ export const api = {
       message:
         'تم تسجيل التسميع بنجاح',
     };
+  },
+
+
+  /*
+   * The member's one listener correction
+   * (within 12 hours of submitting). All
+   * rules are checked by the database
+   * function; only the listener changes.
+   */
+  async correctRecitationListener(
+    submissionId: string,
+    newListenerId: string
+  ): Promise<{
+    id: string;
+    listener_id: string;
+    listener_name_snapshot: string;
+    listener_changed_at: string;
+  }> {
+    const { data, error } =
+      await supabase.rpc(
+        'correct_tasmia_listener',
+        {
+          p_submission_id:
+            submissionId,
+          p_new_listener_id:
+            newListenerId,
+        }
+      );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+          'تعذر تعديل المستمعة'
+      );
+    }
+
+    return data;
   },
 
 

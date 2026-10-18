@@ -74,6 +74,7 @@ interface MemberDashboardProps {
     listener_id: string;
     notes?: string;
   }) => Promise<void>;
+  onCorrectListener: (submissionId: string, newListenerId: string) => Promise<void>;
   onRecordRevision: (payload: { notes?: string; date?: string }) => Promise<void>;
   onRefresh: () => void;
   loading: boolean;
@@ -91,6 +92,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   peerTests = [],
   peerTestAttempts = [],
   onRecordRecitation,
+  onCorrectListener,
   onRecordRevision,
   onRefresh,
   loading,
@@ -950,6 +952,8 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
               currentUser={currentUser}
               recitations={recitations}
               revisions={revisions}
+              peerMembers={peerMembers}
+              onCorrectListener={onCorrectListener}
             />
           </div>
         )}

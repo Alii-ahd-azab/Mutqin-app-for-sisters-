@@ -50,6 +50,8 @@ export interface RecitationLog {
   member_name: string;
   listener_id?: string;
   listener_name?: string;
+  // set once the member used her one listener correction
+  listener_changed_at?: string;
   quarter_number: number;
   cycle_number: number;
   date: string; // YYYY-MM-DD

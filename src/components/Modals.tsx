@@ -633,3 +633,137 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     document.body
   );
 };
+
+interface CorrectListenerModalProps {
+  recitation: RecitationLog | null;
+  onClose: () => void;
+  onSubmit: (submissionId: string, newListenerId: string) => Promise<void>;
+  members: User[]; // Active peers excluding current user and admins
+}
+
+// The member's one listener correction (within 12 hours of submitting).
+export const CorrectListenerModal: React.FC<CorrectListenerModalProps> = ({
+  recitation,
+  onClose,
+  onSubmit,
+  members,
+}) => {
+  const [listenerId, setListenerId] = useState<string>('');
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (recitation) {
+      setListenerId('');
+      setErrorMsg('');
+      setSaving(false);
+    }
+  }, [recitation]);
+
+  if (!recitation) return null;
+
+  const qInfo = getQuarterInfo(recitation.quarter_number);
+  const candidates = members.filter((m) => m.id !== recitation.listener_id);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+
+    if (!listenerId) {
+      setErrorMsg('يرجى اختيار الأخت المستمعة الصحيحة');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await onSubmit(recitation.id, listenerId);
+      onClose();
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'تعذر تعديل المستمعة');
+      setSaving(false);
+    }
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-stone-200 overflow-hidden text-stone-900">
+        <div className="px-6 py-4 border-b border-stone-100 flex items-center justify-between bg-stone-50">
+          <div>
+            <h2 className="text-base font-bold text-stone-900 flex items-center gap-2">
+              <Users className="w-5 h-5 text-pink-600" />
+              تعديل المستمعة
+            </h2>
+            <p className="text-xs text-stone-500">
+              الربع رقم {recitation.quarter_number} ({qInfo.surahName} - الجزء {qInfo.juz})
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 text-stone-400 hover:text-stone-700 hover:bg-stone-200 rounded-lg transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-sm">
+          {errorMsg && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-700">
+            المستمعة المسجلة حاليًا: <strong>{recitation.listener_name || '—'}</strong>
+          </div>
+
+          <div>
+            <label htmlFor="correct-listener-select" className="block text-xs font-bold text-stone-700 mb-1.5">
+              الأخت المستمعة الصحيحة *
+            </label>
+            <select
+              id="correct-listener-select"
+              value={listenerId}
+              onChange={(e) => setListenerId(e.target.value)}
+              required
+              className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 transition outline-hidden text-xs"
+            >
+              <option value="" disabled>
+                -- اختاري الأخت المستمعة --
+              </option>
+              {candidates.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name} ({m.phone})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex items-start gap-1.5">
+            <Lock className="w-3.5 h-3.5 shrink-0 mt-px" />
+            <span>يمكن تعديل المستمعة مرة واحدة فقط خلال 12 ساعة من التسجيل، ولا يمكن التراجع بعد التأكيد.</span>
+          </p>
+
+          <div className="pt-2 flex items-center justify-end gap-2 border-t border-stone-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 rounded-xl transition"
+            >
+              إلغاء
+            </button>
+            <button
+              id="submit-correct-listener-btn"
+              type="submit"
+              disabled={saving}
+              className="px-5 py-2 text-xs font-bold rounded-xl text-white bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-700 hover:to-rose-600 shadow-xs transition disabled:opacity-50 cursor-pointer"
+            >
+              {saving ? 'جاري الحفظ...' : 'تأكيد التعديل'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body
+  );
+};
