@@ -9,18 +9,8 @@ import {
   requireManagedBatch,
   errorResponse,
 } from '../_shared/auth.ts';
-
-function getToday(): string {
-  return new Intl.DateTimeFormat(
-    'en-CA',
-    {
-      timeZone: 'Africa/Cairo',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }
-  ).format(new Date());
-}
+// The program date (the day starts at 05:00 Africa/Cairo).
+import { programDate } from '../_shared/logic/programDate.ts';
 
 function isIsoDate(value: unknown): value is string {
   if (
@@ -128,7 +118,7 @@ Deno.serve(async (req) => {
             p_batch_id:
               batch.id,
             p_today:
-              getToday(),
+              programDate(),
             p_actor:
               caller.id,
             p_expected_cycle_id:
@@ -266,6 +256,213 @@ Deno.serve(async (req) => {
         batch: data,
         message:
           `تم إنشاء «${name}» بنجاح`,
+      });
+    }
+
+    /*
+     * ====================================
+     * «المراجعة البعيدة» (distant-review days)
+     * ====================================
+     *
+     * One manually chosen date per call (no
+     * recurrence, no bulk). Master admin: any
+     * batch; batch admin: her assigned batches
+     * (checked here, before the service-role
+     * database function). The database allows
+     * only future dates, keeps past days as
+     * history and refuses a rest-day date.
+     */
+    if (
+      action ===
+        'distant-review-create' ||
+      action ===
+        'distant-review-update' ||
+      action ===
+        'distant-review-delete'
+    ) {
+      let batchId =
+        body.batch_id;
+      let assignmentId: string | null =
+        null;
+
+      if (
+        action !==
+        'distant-review-create'
+      ) {
+        if (
+          !isUuid(
+            body.assignment_id
+          )
+        ) {
+          throw new HttpError(
+            'معرف يوم المراجعة البعيدة غير صالح',
+            400
+          );
+        }
+
+        const {
+          data: existing,
+          error: existingError,
+        } =
+          await admin
+            .from('distant_review_assignments')
+            .select('id, batch_id')
+            .eq('id', body.assignment_id)
+            .maybeSingle();
+
+        if (existingError) {
+          throw new HttpError(
+            'تعذر قراءة يوم المراجعة البعيدة',
+            500
+          );
+        }
+
+        if (!existing) {
+          throw new HttpError(
+            'يوم المراجعة البعيدة غير موجود',
+            404
+          );
+        }
+
+        assignmentId =
+          existing.id;
+        batchId =
+          existing.batch_id;
+      }
+
+      const batch =
+        await requireManagedBatch(
+          admin,
+          caller,
+          batchId
+        );
+
+      const rpc =
+        action ===
+        'distant-review-delete'
+          ? admin.rpc(
+              'distant_review_delete',
+              {
+                p_assignment_id:
+                  assignmentId,
+                p_batch_id:
+                  batch.id,
+              }
+            )
+          : (() => {
+              if (
+                !isIsoDate(
+                  body.review_date
+                )
+              ) {
+                throw new HttpError(
+                  'يرجى تحديد تاريخ صحيح للمراجعة البعيدة',
+                  400
+                );
+              }
+
+              const start =
+                Number(
+                  body.start_quarter
+                );
+              const end =
+                Number(
+                  body.end_quarter
+                );
+
+              if (
+                !Number.isInteger(start) ||
+                !Number.isInteger(end) ||
+                start < 1 ||
+                end > 240 ||
+                // «إلى الربع» is the stopping
+                // boundary (its beginning).
+                start >= end
+              ) {
+                throw new HttpError(
+                  'نطاق الأرباع غير صالح: «إلى الربع» هو موضع التوقف (بداية ذلك الربع)، فيجب أن يكون بعد «من الربع» وضمن 1–240.',
+                  400
+                );
+              }
+
+              const note =
+                String(
+                  body.note ?? ''
+                ).trim();
+
+              if (note.length > 300) {
+                throw new HttpError(
+                  'الملاحظة طويلة جدًا (300 حرف كحد أقصى).',
+                  400
+                );
+              }
+
+              return admin.rpc(
+                'distant_review_save',
+                {
+                  p_assignment_id:
+                    assignmentId,
+                  p_batch_id:
+                    batch.id,
+                  p_review_date:
+                    body.review_date,
+                  p_start_quarter:
+                    start,
+                  p_end_quarter:
+                    end,
+                  p_note:
+                    note || null,
+                  p_actor:
+                    caller.id,
+                }
+              );
+            })();
+
+      const {
+        data,
+        error,
+      } = await rpc;
+
+      if (error || !data) {
+        // Arabic messages raised by the database function are safe to show.
+        const known =
+          error?.code === '23514' ||
+          error?.code === '23505' ||
+          error?.code === 'P0002';
+
+        if (!known) {
+          console.error(
+            'admin-actions distant-review failed',
+            { action, batchId: batch.id, code: error?.code, message: error?.message }
+          );
+        }
+
+        return json(
+          {
+            error:
+              known && error?.message
+                ? error.message
+                : 'تعذر حفظ يوم المراجعة البعيدة',
+          },
+          error?.code === '23505'
+            ? 409
+            : error?.code === 'P0002'
+            ? 404
+            : 400
+        );
+      }
+
+      return json({
+        success: true,
+        assignment: data,
+        message:
+          action ===
+          'distant-review-create'
+            ? `تمت إضافة يوم المراجعة البعيدة (${body.review_date})`
+            : action ===
+              'distant-review-update'
+            ? 'تم تعديل يوم المراجعة البعيدة'
+            : 'تم حذف يوم المراجعة البعيدة، وعاد هذا التاريخ يومًا عاديًا في البرنامج',
       });
     }
 

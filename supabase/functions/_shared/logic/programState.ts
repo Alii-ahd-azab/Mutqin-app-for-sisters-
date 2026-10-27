@@ -2,6 +2,7 @@
 // Pure TypeScript only (bundled by both Vite and Deno).
 
 import type { GroupSettings } from './programTypes.ts';
+import { programDate } from './programDate.ts';
 
 export interface ProgramCycleRow {
   id: string;
@@ -43,11 +44,13 @@ export function dayDifference(
 
 /**
  * Program settings of one cycle (start date + pause state),
- * built from its cycle row and pause rows.
+ * built from its cycle row and pause rows, plus the dates of
+ * its «المراجعة البعيدة» days (non-program days).
  */
 export function buildProgramSettings(
   cycle: ProgramCycleRow,
-  pauses: ProgramPauseRow[]
+  pauses: ProgramPauseRow[],
+  distantReviewDates: string[] = []
 ): GroupSettings {
   const currentPause =
     pauses.find(
@@ -82,12 +85,16 @@ export function buildProgramSettings(
       from: pause.paused_on,
       until: pause.resumed_on,
     })),
+    distant_review_dates: [
+      ...distantReviewDates,
+    ].sort(),
   };
 }
 
 /**
  * Calendar date of a revision confirmation: the active program date
- * of its program_day, falling back to the confirmation timestamp.
+ * of its program_day, falling back to the program date (05:00
+ * Africa/Cairo) of the confirmation timestamp.
  */
 export function revisionDateForProgramDay(
   activeDates: string[],
@@ -96,6 +103,17 @@ export function revisionDateForProgramDay(
 ): string {
   return (
     activeDates[programDay - 1] ||
-    String(confirmedAt).slice(0, 10)
+    programDateOfTimestamp(confirmedAt)
   );
+}
+
+/** The program date (05:00 Africa/Cairo) of a stored timestamp. */
+export function programDateOfTimestamp(
+  timestamp: string
+): string {
+  const instant = new Date(timestamp);
+
+  return Number.isNaN(instant.getTime())
+    ? String(timestamp).slice(0, 10)
+    : programDate(instant);
 }

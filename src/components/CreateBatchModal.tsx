@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Batch } from '../types';
 import { api } from '../api/client';
-import { formatDate } from '../lib/calculations';
+import { programDate } from '../lib/calculations';
 import { X, Layers, CalendarRange } from 'lucide-react';
 
 interface CreateBatchModalProps {
@@ -16,7 +16,7 @@ export const CreateBatchModal: React.FC<CreateBatchModalProps> = ({
   onCreated,
 }) => {
   const [name, setName] = useState('');
-  const [startDate, setStartDate] = useState(() => formatDate(new Date()));
+  const [startDate, setStartDate] = useState(() => programDate());
   const [errorMsg, setErrorMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -39,7 +39,7 @@ export const CreateBatchModal: React.FC<CreateBatchModalProps> = ({
     try {
       const res = await api.adminCreateBatch({ name: name.trim(), start_date: startDate });
       setName('');
-      setStartDate(formatDate(new Date()));
+      setStartDate(programDate());
       onClose();
       await onCreated(res.batch);
     } catch (err: any) {

@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "functions:check": "npx -y deno@2.5.6 check --config supabase/functions/admin-users/deno.json supabase/functions/admin-users/index.ts supabase/functions/admin-actions/index.ts supabase/functions/peer-tests/index.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -23,14 +25,16 @@
     "vite": "^6.2.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.3.14",
     "@types/dompurify": "^3.2.0",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
     "sharp": "^0.35.4",
-    "supabase": "^2.119.0",
+    "supabase": "^2.122.0",
     "tailwindcss": "^4.1.14",
+    "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
   }

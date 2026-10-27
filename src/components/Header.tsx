@@ -11,9 +11,11 @@ interface HeaderProps {
   allUsers?: User[];
   batchName?: string;
   onRefresh: () => void;
+  // The notification bell (members, batch admins and master admins).
+  notifications?: React.ReactNode;
 }
 
-export const Header: React.FC<HeaderProps> = ({ batchName }) => {
+export const Header: React.FC<HeaderProps> = ({ batchName, notifications }) => {
   const { currentUser, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -51,6 +53,8 @@ export const Header: React.FC<HeaderProps> = ({ batchName }) => {
 
         {/* User Info & Profile Menu */}
         <div className="flex items-center gap-2">
+          {notifications}
+
           <div className="relative">
             <button
               id="user-account-menu-button"

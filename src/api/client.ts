@@ -15,19 +15,48 @@ import {
   PeerTestCandidate,
   PeerTestQuestion,
   PeerTestSaveInput,
+  DistantReviewAssignment,
+  DistantReviewCompletion,
+  DistantReviewInput,
 } from '../types';
 
 import { supabase } from '../lib/supabase';
 
 import {
-  formatDate,
+  programDate,
+  programDateOfTimestamp,
   calculateCycleInfo,
   getActiveCycleDates,
   buildProgramSettings,
   revisionDateForProgramDay,
 } from '../lib/calculations';
 
+import {
+  buildBatchAdminAlerts,
+  type BatchAdminAlert,
+  type NotificationState,
+} from '../lib/notifications';
+
+import {
+  computeBatchDelays,
+  loadBatchProgram,
+} from '../../supabase/functions/_shared/logic/batchDelays.ts';
+
 import { phoneToAuthEmail } from '../lib/authHelpers';
+
+
+// What is stored with a seen/archived notification: its key plus a display snapshot for the history.
+export type NotificationSnapshot = {
+  key: string;
+  kind: string;
+  tone: string;
+  urgent: boolean;
+  title: string;
+  body: string;
+};
+
+// The program date: changes at 05:00 Africa/Cairo, whatever the device's time zone.
+const today = () => programDate();
 
 
 /*
@@ -129,6 +158,28 @@ type RevisionRow = {
   confirmed_at: string;
 };
 
+type DistantReviewRow = {
+  id: string;
+  batch_id: string;
+  cycle_id: string;
+  review_date: string;
+  start_quarter: number;
+  end_quarter: number;
+  note: string | null;
+  created_by_name_snapshot: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type DistantCompletionRow = {
+  id: string;
+  assignment_id: string;
+  user_id: string;
+  completed_at: string;
+  completed_on: string;
+  member_name_snapshot: string | null;
+};
+
 type MembershipWithProfileRow = {
   membership_role: 'member' | 'admin';
   joined_at: string;
@@ -177,6 +228,44 @@ function requireBatchId(
   }
 
   return batchId;
+}
+
+
+/*
+ * «المراجعة البعيدة» payload: «إلى الربع» is the stopping boundary
+ * (the beginning of that quarter), so it must come after «من الربع».
+ */
+function distantReviewBody(
+  payload: DistantReviewInput
+) {
+  const start = Number(payload.start_quarter);
+  const end = Number(payload.end_quarter);
+
+  if (
+    !payload.review_date ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(payload.review_date)
+  ) {
+    throw new Error('يرجى تحديد تاريخ المراجعة البعيدة');
+  }
+
+  if (
+    !Number.isInteger(start) ||
+    !Number.isInteger(end) ||
+    start < 1 ||
+    end > 240 ||
+    start >= end
+  ) {
+    throw new Error(
+      'نطاق الأرباع غير صالح: «إلى الربع» هو موضع التوقف (بداية ذلك الربع)، فيجب أن يكون بعد «من الربع» وضمن 1–240.'
+    );
+  }
+
+  return {
+    review_date: payload.review_date,
+    start_quarter: start,
+    end_quarter: end,
+    note: (payload.note || '').trim(),
+  };
 }
 
 
@@ -522,11 +611,16 @@ async function getPauseRows(
 function buildSettings(
   cycle: CycleRow,
   pauses: PauseRow[],
+  distantReviewDates: string[],
   latestThought?: ThoughtRow | null,
   publisherName?: string
 ): GroupSettings {
   return {
-    ...buildProgramSettings(cycle, pauses),
+    ...buildProgramSettings(
+      cycle,
+      pauses,
+      distantReviewDates
+    ),
     daily_thought: latestThought?.content_html || '',
     daily_thought_updated_at:
       latestThought?.published_at,
@@ -580,6 +674,110 @@ async function getLatestThought(
 
 
 /*
+ * «المراجعة البعيدة» days of one batch
+ * (every cycle: the history keeps them).
+ */
+async function getDistantReviewRows(
+  batchId: string
+): Promise<DistantReviewRow[]> {
+  return fetchAllRows<DistantReviewRow>((from, to) =>
+    supabase
+      .from('distant_review_assignments')
+      .select(
+        'id, batch_id, cycle_id, review_date, start_quarter, end_quarter, note, created_by_name_snapshot, created_at, updated_at'
+      )
+      .eq('batch_id', batchId)
+      .order('review_date', {
+        ascending: true,
+      })
+      .order('id', {
+        ascending: true,
+      })
+      .range(from, to)
+  );
+}
+
+
+/*
+ * Completions of these assignments that
+ * the caller may see (RLS: a member her
+ * own, an admin her managed batches').
+ */
+async function getDistantCompletionRows(
+  assignmentIds: string[]
+): Promise<DistantCompletionRow[]> {
+  const rows: DistantCompletionRow[] = [];
+
+  for (let i = 0; i < assignmentIds.length; i += 100) {
+    const ids = assignmentIds.slice(i, i + 100);
+
+    rows.push(
+      ...(await fetchAllRows<DistantCompletionRow>((from, to) =>
+        supabase
+          .from('distant_review_completions')
+          .select(
+            'id, assignment_id, user_id, completed_at, completed_on, member_name_snapshot'
+          )
+          .in('assignment_id', ids)
+          .order('id', {
+            ascending: true,
+          })
+          .range(from, to)
+      ))
+    );
+  }
+
+  return rows;
+}
+
+
+function cycleDistantDates(
+  rows: DistantReviewRow[],
+  cycleId: string
+): string[] {
+  return rows
+    .filter((row) => row.cycle_id === cycleId)
+    .map((row) => row.review_date);
+}
+
+
+function mapDistantReviews(
+  rows: DistantReviewRow[]
+): DistantReviewAssignment[] {
+  return rows.map((row) => ({
+    id: row.id,
+    batch_id: row.batch_id,
+    cycle_id: row.cycle_id,
+    review_date: row.review_date,
+    start_quarter: row.start_quarter,
+    end_quarter: row.end_quarter,
+    note: row.note || undefined,
+    created_by_name:
+      row.created_by_name_snapshot || undefined,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }));
+}
+
+
+function mapDistantCompletions(
+  rows: DistantCompletionRow[],
+  names: Map<string, string>
+): DistantReviewCompletion[] {
+  return rows.map((row) => ({
+    id: row.id,
+    assignment_id: row.assignment_id,
+    member_id: row.user_id,
+    member_name:
+      row.member_name_snapshot ||
+      names.get(row.user_id),
+    completed_at: row.completed_at,
+    completed_on: row.completed_on,
+  }));
+}
+
+
+/*
  * Lightweight program state for one
  * batch (cycle + settings + rest days),
  * used by write operations that need
@@ -591,15 +789,20 @@ async function getProgramState(
   const cycle =
     await getActiveCycle(batchId);
 
-  const [restRows, pauseRows] =
+  const [restRows, pauseRows, distantRows] =
     await Promise.all([
       getRestDayRows(cycle.id),
       getPauseRows(cycle.id),
+      getDistantReviewRows(batchId),
     ]);
 
   const settings = buildSettings(
     cycle,
-    pauseRows
+    pauseRows,
+    cycleDistantDates(
+      distantRows,
+      cycle.id
+    )
   );
 
   const restDays = mapRestDays(
@@ -661,10 +864,13 @@ function mapRecitations(
         ? names.get(row.listener_id)
         : undefined;
 
+    // Program date (05:00 Africa/Cairo) of the submission.
     const submittedDate =
-      String(
-        row.submitted_at || ''
-      ).slice(0, 10);
+      programDateOfTimestamp(
+        String(
+          row.submitted_at || ''
+        )
+      );
 
     return {
       id: row.id,
@@ -738,7 +944,7 @@ function mapRevisions(
   const activeDates =
     getActiveCycleDates(
       cycle.starts_on,
-      formatDate(new Date()),
+      today(),
       restDays,
       settings
     );
@@ -843,6 +1049,7 @@ async function buildBootstrap(
     recitationRows,
     revisionRows,
     peerTests,
+    distantRows,
   ] = await Promise.all([
     getRestDayRows(cycle.id),
     getPauseRows(cycle.id),
@@ -850,12 +1057,18 @@ async function buildBootstrap(
     getRecitationRows(cycle.id),
     getRevisionRows(cycle.id),
     getPeerTestsForCycle(cycle.id),
+    getDistantReviewRows(batchId),
   ]);
 
-  const peerTestAttempts =
-    await getPeerTestAttemptsForTests(
-      peerTests.map((t) => t.id)
-    );
+  const [peerTestAttempts, distantCompletionRows] =
+    await Promise.all([
+      getPeerTestAttemptsForTests(
+        peerTests.map((t) => t.id)
+      ),
+      getDistantCompletionRows(
+        distantRows.map((r) => r.id)
+      ),
+    ]);
 
   const userMap = new Map(
     users.map((user) => [
@@ -875,6 +1088,10 @@ async function buildBootstrap(
     buildSettings(
       cycle,
       pauseRows,
+      cycleDistantDates(
+        distantRows,
+        cycle.id
+      ),
       latestThought,
       publisherName
     );
@@ -885,14 +1102,13 @@ async function buildBootstrap(
       userMap
     );
 
-  const today =
-    formatDate(new Date());
+  const day = today();
 
   const cycleInfo =
     calculateCycleInfo(
       settings,
       restDays,
-      today
+      day
     );
 
   const names =
@@ -930,14 +1146,21 @@ async function buildBootstrap(
     revisions,
     todayRecitations:
       recitations.filter(
-        (item) => item.date === today
+        (item) => item.date === day
       ),
     todayRevisions:
       revisions.filter(
-        (item) => item.date === today
+        (item) => item.date === day
       ),
     peerTests,
     peerTestAttempts,
+    distantReviews:
+      mapDistantReviews(distantRows),
+    distantCompletions:
+      mapDistantCompletions(
+        distantCompletionRows,
+        names
+      ),
   };
 }
 
@@ -1339,7 +1562,7 @@ export const api = {
 
     const targetDate =
       payload.date ||
-      formatDate(new Date());
+      today();
 
     const activeDates =
       getActiveCycleDates(
@@ -1354,9 +1577,10 @@ export const api = {
       );
 
     /*
-     * Revision is indexed by ACTIVE program day. Rest days
-     * and pause days are not program days, so they never
-     * create (or re-open) a revision obligation.
+     * Revision is indexed by ACTIVE program day. Rest days,
+     * pause days and «المراجعة البعيدة» days are not program
+     * days, so they never create (or re-open) a revision
+     * obligation.
      */
     const programDay =
       activeDates.indexOf(
@@ -1365,7 +1589,7 @@ export const api = {
 
     if (programDay < 1) {
       throw new Error(
-        'لا توجد مراجعة جديدة في هذا اليوم (يوم راحة أو إيقاف للبرنامج)'
+        'لا توجد مراجعة يومية جديدة في هذا اليوم (يوم راحة أو مراجعة بعيدة أو إيقاف للبرنامج)'
       );
     }
 
@@ -1784,9 +2008,6 @@ export const api = {
       );
     }
 
-    const today =
-      formatDate(new Date());
-
     const {
       error,
     } =
@@ -1798,7 +2019,7 @@ export const api = {
           cycle_id:
             program.cycle.id,
           paused_on:
-            today,
+            today(),
           created_by:
             profile.id,
         });
@@ -1847,9 +2068,7 @@ export const api = {
         )
         .update({
           resumed_on:
-            formatDate(
-              new Date()
-            ),
+            today(),
         })
         .eq(
           'id',
@@ -2232,6 +2451,200 @@ export const api = {
       { action: 'admin-preview', test_id: testId },
       'تعذر توليد عيّنة الأسئلة.'
     );
+  },
+
+
+  /*
+   * «المراجعة البعيدة»: one manually chosen day per call (no recurrence).
+   * admin-actions checks the batch; the database allows only future dates
+   * and refuses a date that is a rest day.
+   */
+  async adminCreateDistantReview(
+    batchId: string,
+    payload: DistantReviewInput
+  ): Promise<{ assignment: DistantReviewAssignment; message: string }> {
+    return invokeFunction(
+      'admin-actions',
+      {
+        action: 'distant-review-create',
+        batch_id: requireBatchId(batchId),
+        ...distantReviewBody(payload),
+      },
+      'تعذر إضافة يوم المراجعة البعيدة. حاولي مرة أخرى.'
+    );
+  },
+
+
+  async adminUpdateDistantReview(
+    assignmentId: string,
+    payload: DistantReviewInput
+  ): Promise<{ message: string }> {
+    return invokeFunction(
+      'admin-actions',
+      {
+        action: 'distant-review-update',
+        assignment_id: assignmentId,
+        ...distantReviewBody(payload),
+      },
+      'تعذر تعديل يوم المراجعة البعيدة. حاولي مرة أخرى.'
+    );
+  },
+
+
+  async adminDeleteDistantReview(
+    assignmentId: string
+  ): Promise<{ message: string }> {
+    return invokeFunction(
+      'admin-actions',
+      {
+        action: 'distant-review-delete',
+        assignment_id: assignmentId,
+      },
+      'تعذر حذف يوم المراجعة البعيدة. حاولي مرة أخرى.'
+    );
+  },
+
+
+  /* Member: confirm one owed distant review (identity: assignment + member; idempotent). */
+  async completeDistantReview(
+    assignmentId: string
+  ): Promise<{ message: string; already_recorded: boolean }> {
+    const { data, error } = await supabase.rpc(
+      'complete_distant_review',
+      { p_assignment_id: assignmentId }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+          'تعذر حفظ إتمام المراجعة البعيدة. حاولي مرة أخرى.'
+      );
+    }
+
+    return data?.already_recorded
+      ? {
+          message: 'تم تأكيد هذه المراجعة البعيدة مسبقًا.',
+          already_recorded: true,
+        }
+      : {
+          message: 'تم تسجيل إتمام المراجعة البعيدة بنجاح، تقبّل الله منكِ.',
+          already_recorded: false,
+        };
+  },
+
+
+  /*
+   * Admin alerts (3+ overdue days) of the given batches, computed from each
+   * batch's program state with the shared delay code. RLS returns only the
+   * batches she manages, so another batch yields no data and no alert.
+   */
+  async getBatchAdminAlerts(
+    batches: Pick<Batch, 'id' | 'name'>[]
+  ): Promise<BatchAdminAlert[]> {
+    const day = today();
+
+    const lists = await Promise.all(
+      batches.map(async (b) => {
+        try {
+          const cycle = await getActiveCycle(b.id);
+          const program = await loadBatchProgram(supabase, cycle);
+          const { members, delayById } = computeBatchDelays(program, day);
+          return buildBatchAdminAlerts(b, members, delayById);
+        } catch {
+          return []; // a batch without an active cycle has no alerts
+        }
+      })
+    );
+
+    return lists.flat();
+  },
+
+
+  /* Own notification interaction state: seen / archived per notification key (RLS: own rows only). */
+  async getNotificationStates(): Promise<NotificationState[]> {
+    const { data, error } = await supabase
+      .from('notification_states')
+      .select('notification_key, kind, tone, urgent, title, body, seen_at, archived_at')
+      .order('updated_at', { ascending: false })
+      .limit(500);
+
+    if (error) {
+      throw new Error(error.message || 'تعذر تحميل حالة التنبيهات');
+    }
+
+    return (data || []).map((r) => ({
+      key: r.notification_key,
+      kind: r.kind,
+      tone: r.tone,
+      urgent: r.urgent,
+      title: r.title,
+      body: r.body,
+      seenAt: r.seen_at,
+      archivedAt: r.archived_at,
+    }));
+  },
+
+
+  /* Opening the panel: the visible non-urgent notifications become seen (never archived). */
+  async markNotificationsSeen(
+    items: NotificationSnapshot[]
+  ): Promise<void> {
+    if (items.length === 0) return;
+
+    const { error } = await supabase.rpc(
+      'notifications_mark_seen',
+      { p_items: items }
+    );
+
+    // A display hint: the caller warns (never a console error) — e.g. a reload cutting the request.
+    if (error) {
+      throw new Error(error.message || 'تعذر حفظ حالة التنبيهات');
+    }
+  },
+
+
+  /* Clicking a notification: archived (moves to «عرض كل التنبيهات»). */
+  async archiveNotification(
+    item: NotificationSnapshot
+  ): Promise<void> {
+    const { error } = await supabase.rpc(
+      'notification_archive',
+      { p_item: item }
+    );
+
+    if (error) {
+      throw new Error(error.message || 'تعذر حفظ حالة التنبيه');
+    }
+  },
+
+
+  /* Master admin: the batches whose serious alerts she follows (her own rows only). */
+  async getNotificationFollows(): Promise<string[]> {
+    const { data, error } = await supabase
+      .from('admin_notification_batch_subscriptions')
+      .select('batch_id')
+      .eq('enabled', true);
+
+    if (error) {
+      throw new Error(error.message || 'تعذر تحميل إعدادات التنبيهات');
+    }
+
+    return (data || []).map((r) => r.batch_id as string);
+  },
+
+
+  async setNotificationFollow(
+    batchId: string,
+    enabled: boolean
+  ): Promise<void> {
+    const { error } = await supabase.rpc(
+      'set_notification_batch_follow',
+      { p_batch_id: batchId, p_enabled: enabled }
+    );
+
+    if (error) {
+      throw new Error(error.message || 'تعذر حفظ إعدادات التنبيهات');
+    }
   },
 
 

@@ -30,6 +30,8 @@ export interface GroupSettings {
   // resume date (an active day again), null while still paused.
   // When present, paused DATES are excluded from program days.
   pause_periods?: { from: string; until: string | null }[];
+  // «المراجعة البعيدة» dates of the cycle: non-program days for the normal calendar (like rest days).
+  distant_review_dates?: string[];
   daily_thought?: string; // HTML formatted thought of the day
   daily_thought_updated_at?: string; // ISO date string
   daily_thought_updated_by?: string; // Admin display name
@@ -42,6 +44,30 @@ export interface RestDay {
   added_by_admin_id: string;
   added_by_name?: string;
   created_at: string;
+}
+
+// «المراجعة البعيدة»: one manually scheduled day with an explicit Quran range (quarters).
+export interface DistantReviewAssignment {
+  id: string;
+  batch_id: string;
+  cycle_id: string;
+  review_date: string; // YYYY-MM-DD
+  start_quarter: number;
+  end_quarter: number;
+  note?: string;
+  created_by_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// One member's confirmation of one assignment (identity: assignment_id + member_id).
+export interface DistantReviewCompletion {
+  id: string;
+  assignment_id: string;
+  member_id: string;
+  member_name?: string;
+  completed_at: string;
+  completed_on: string; // YYYY-MM-DD (program date of the confirmation)
 }
 
 export interface RecitationLog {
@@ -84,11 +110,14 @@ export interface CycleInfo {
   review_count: number;
   is_rest_day: boolean;
   rest_day_note?: string;
+  // Today is a «المراجعة البعيدة» day (not paused): no normal progression today.
+  is_distant_review_day: boolean;
   is_paused: boolean;
   paused_at?: string | null;
   is_completed: boolean;
   days_elapsed: number;
   rest_days_count: number;
+  distant_review_days_count: number;
   paused_days_count: number;
   start_date: string;
   current_cycle_number: number;

@@ -6,10 +6,30 @@ import type {
   RecitationLog,
   RevisionLog,
   CycleInfo,
+  DistantReviewAssignment,
+  DistantReviewCompletion,
 } from '../supabase/functions/_shared/logic/programTypes.ts';
 
 // Core program types live in the shared folder so the Edge Functions use the same definitions.
-export type { UserRole, User, GroupSettings, RestDay, RecitationLog, RevisionLog, CycleInfo };
+export type {
+  UserRole,
+  User,
+  GroupSettings,
+  RestDay,
+  RecitationLog,
+  RevisionLog,
+  CycleInfo,
+  DistantReviewAssignment,
+  DistantReviewCompletion,
+};
+
+// «المراجعة البعيدة»: what an admin submits for one day (the TO quarter is the stopping boundary).
+export interface DistantReviewInput {
+  review_date: string;
+  start_quarter: number;
+  end_quarter: number;
+  note?: string;
+}
 
 export type MembershipRole = 'member' | 'admin';
 
@@ -91,6 +111,10 @@ export interface BatchBootstrap {
   peerTests: PeerTest[];
   // Attempts the user may see (members: their own as candidate/examiner)
   peerTestAttempts: PeerTestAttempt[];
+  // «المراجعة البعيدة» days of the batch (every cycle) and the completions the user may see
+  // (members: their own; admins: their batch's)
+  distantReviews: DistantReviewAssignment[];
+  distantCompletions: DistantReviewCompletion[];
 }
 
 // ============ PEER TESTING (اختبار الزملاء) ============

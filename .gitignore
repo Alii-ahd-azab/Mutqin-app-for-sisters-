@@ -9,3 +9,7 @@ coverage/
 .env.local
 mutqin_sisters_backup_before_batches.dump
 mutqin_sisters_public_before_batches.sql
+package-lock.json
+package.json
+sisters-live-schema.sql
+package.json
