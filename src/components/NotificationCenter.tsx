@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertCircle,
   AlertTriangle,
@@ -392,7 +393,10 @@ export const NotificationCenter: React.FC<Props> = (props) => {
         </div>
       )}
 
-      {historyOpen && (
+      {/* Rendered on document.body: the Sisters header has backdrop-blur, and a backdrop-filter
+          ancestor would confine this fixed overlay to the header's box instead of the viewport. */}
+      {historyOpen &&
+        createPortal(
         <div
           className="fixed inset-0 z-50 bg-stone-900/40 flex items-start sm:items-center justify-center p-3"
           onMouseDown={(e) => e.target === e.currentTarget && setHistoryOpen(false)}
@@ -435,8 +439,9 @@ export const NotificationCenter: React.FC<Props> = (props) => {
               </section>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
     </div>
   );
 };
