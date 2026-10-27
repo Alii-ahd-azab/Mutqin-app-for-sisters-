@@ -432,3 +432,39 @@ test('master admin batch follows: only master admins, only their own preferences
   });
   await as(null, (tx) => fails(tx, 'select 1 from admin_notification_batch_subscriptions', [], '42501'));
 });
+
+// ---------------------------------------------------------------------------------------------
+// Regression: the two production failures (objects missing from the API schema)
+// ---------------------------------------------------------------------------------------------
+
+test('regression: every RPC the app calls exists with exactly the argument names the frontend sends', { skip }, async () => {
+  const src = fs.readFileSync('src/api/client.ts', 'utf8');
+  const calls = [...src.matchAll(/\.rpc\(\s*'(\w+)',\s*\{([^}]*)\}/g)].map((m) => ({
+    name: m[1],
+    args: [...m[2].matchAll(/(p_\w+)\s*:/g)].map((a) => a[1]).sort(),
+  }));
+  for (const name of ['set_notification_batch_follow', 'notifications_mark_seen', 'notification_archive', 'complete_distant_review'])
+    assert.ok(calls.some((c) => c.name === name), `client calls ${name}`);
+  for (const c of calls) {
+    const rows = (await db.query(
+      `select array(select n from unnest(proargnames, coalesce(proargmodes, array_fill('i'::"char", array[cardinality(proargnames)]))) u(n, m)
+              where m in ('i', 'b') order by 1) a
+       from pg_proc where proname=$1 and pronamespace='public'::regnamespace`,
+      [c.name]
+    )).rows as { a: string[] }[];
+    assert.ok(rows.some((r) => JSON.stringify(r.a) === JSON.stringify(c.args)), `public.${c.name}(${c.args.join(', ')}) exists`);
+  }
+  // Named-argument call, as PostgREST does it.
+  await as(id.master, (tx) => tx.query('select public.set_notification_batch_follow(p_batch_id => $1, p_enabled => true)', [id.batchA]));
+});
+
+test('regression: every table the app reads exists and is readable by authenticated users through RLS', { skip }, async () => {
+  const src = fs.readFileSync('src/api/client.ts', 'utf8') + fs.readFileSync('supabase/functions/_shared/logic/batchDelays.ts', 'utf8');
+  const tables = [...new Set([...src.matchAll(/\.from\(\s*'(\w+)'\s*\)/g)].map((m) => m[1]))];
+  for (const t of ['distant_review_assignments', 'distant_review_completions', 'notification_states', 'admin_notification_batch_subscriptions'])
+    assert.ok(tables.includes(t), `app reads ${t}`);
+  for (const t of tables) {
+    assert.ok((await one(db, 'select to_regclass($1) r', [`public.${t}`])).r, `public.${t} exists`);
+    await as(id.m1, (tx) => tx.query(`select 1 from public.${t} limit 1`));
+  }
+});
