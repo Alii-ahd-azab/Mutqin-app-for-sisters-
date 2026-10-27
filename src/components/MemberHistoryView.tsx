@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { RecitationLog, RevisionLog, User } from '../types';
+import { DistantReviewAssignment, DistantReviewCompletion, RecitationLog, RevisionLog, User } from '../types';
+import { formatArabicDateWithDayName } from '../lib/calculations';
 import { getQuarterInfo } from '../data/quranData';
-import { CheckCircle2, Calendar, MessageSquare, BookMarked, Check, UserCheck, Headphones, Pencil } from 'lucide-react';
+import { CheckCircle2, Calendar, MessageSquare, BookMarked, Check, UserCheck, Headphones, Pencil, Clock, BookOpenCheck } from 'lucide-react';
 import { CorrectListenerModal } from './Modals';
 
 // Mirrors the database rule: one listener correction within 12 hours of submitting.
@@ -13,6 +14,8 @@ interface MemberHistoryViewProps {
   revisions: RevisionLog[];
   peerMembers: User[];
   onCorrectListener: (submissionId: string, newListenerId: string) => Promise<void>;
+  // «المراجعة البعيدة»: her completed ones (kept permanently) and the ones still owed
+  distantHistory?: { assignment: DistantReviewAssignment; completion?: DistantReviewCompletion }[];
 }
 
 export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
@@ -21,8 +24,9 @@ export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
   revisions,
   peerMembers,
   onCorrectListener,
+  distantHistory = [],
 }) => {
-  const [activeTab, setActiveTab] = useState<'recitations' | 'revisions' | 'listening'>('recitations');
+  const [activeTab, setActiveTab] = useState<'recitations' | 'revisions' | 'distant' | 'listening'>('recitations');
   const [editingRecitation, setEditingRecitation] = useState<RecitationLog | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
   // Re-evaluated every minute so the edit action disappears when the window closes
@@ -65,7 +69,7 @@ export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
   return (
     <div className="bg-white rounded-2xl border border-pink-100 shadow-2xs overflow-hidden">
       {/* Tab bar */}
-      <div className="flex border-b border-pink-100 bg-pink-50/40 p-1.5 gap-1 text-xs font-bold">
+      <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-pink-100 bg-pink-50/40 p-1.5 gap-1 text-xs font-bold">
         <button
           onClick={() => setActiveTab('recitations')}
           className={`flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition ${
@@ -88,6 +92,19 @@ export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
         >
           <Check className="w-3.5 h-3.5 text-pink-600" />
           <span>سجل المراجعات ({myRevisions.length})</span>
+        </button>
+
+        <button
+          id="history-tab-distant"
+          onClick={() => setActiveTab('distant')}
+          className={`flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition ${
+            activeTab === 'distant'
+              ? 'bg-white text-rose-950 shadow-2xs border border-pink-200'
+              : 'text-stone-600 hover:text-stone-900'
+          }`}
+        >
+          <BookOpenCheck className="w-3.5 h-3.5 text-pink-600" />
+          <span>المراجعة البعيدة ({distantHistory.filter((h) => h.completion).length})</span>
         </button>
 
         <button
@@ -169,6 +186,55 @@ export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
               </div>
             )}
           </div>
+        ) : activeTab === 'distant' ? (
+          distantHistory.length === 0 ? (
+            <div className="text-center py-8 text-stone-400 text-xs">لا توجد أيام مراجعة بعيدة في سجلكِ بعد.</div>
+          ) : (
+            distantHistory.map(({ assignment: a, completion: c }) => {
+              const late = !!c && c.completed_on > a.review_date;
+              return (
+                <div key={a.id} id={`distant-history-${a.review_date}`} className="py-3 flex items-start justify-between gap-3 text-xs">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-stone-900">المراجعة البعيدة</span>
+                      <span className="text-stone-500">
+                        من بداية الربع {a.start_quarter} حتى بداية الربع {a.end_quarter} ({getQuarterInfo(a.start_quarter).surahName} - {getQuarterInfo(a.end_quarter).surahName})
+                      </span>
+                      {c ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          {late ? 'تم الإنجاز (متأخرًا)' : 'تم الإنجاز'}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                          <Clock className="w-3 h-3 text-amber-700" />
+                          لم تُنجز بعد
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-stone-600">
+                      موعدها: <strong>{formatArabicDateWithDayName(a.review_date)}</strong>
+                      {c && late && (
+                        <>
+                          {' '}• تمت: <strong>{formatArabicDateWithDayName(c.completed_on)}</strong>
+                        </>
+                      )}
+                    </p>
+                    {a.note && (
+                      <p className="text-stone-500 text-[11px] flex items-center gap-1">
+                        <MessageSquare className="w-3 h-3 text-stone-400 shrink-0" />
+                        <span>{a.note}</span>
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-left shrink-0 text-stone-400 text-[11px] flex items-center gap-1 font-mono">
+                    <Calendar className="w-3 h-3" />
+                    <span>{a.review_date}</span>
+                  </div>
+                </div>
+              );
+            })
+          )
         ) : activeTab === 'revisions' ? (
           myRevisions.length === 0 ? (
             <div className="text-center py-8 text-stone-400 text-xs">

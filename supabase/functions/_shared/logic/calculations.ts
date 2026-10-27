@@ -3,71 +3,20 @@
 // apply the exact same rules. Pure TypeScript only (no DOM/Deno APIs).
 import type {
   CycleInfo,
+  DistantReviewAssignment,
+  DistantReviewCompletion,
   GroupSettings,
   RestDay,
   RevisionLog,
   RecitationLog,
   User,
 } from './programTypes.ts';
-
-/**
- * Format a Date object to YYYY-MM-DD.
- * In the browser, uses the user's local calendar date.
- * Outside the browser, defaults to Makkah/Riyadh time.
- */
-export function formatDate(
-  date: Date = new Date(),
-  timeZone?: string
-): string {
-  try {
-    if (
-      typeof (globalThis as { window?: unknown }).window !== 'undefined' &&
-      !timeZone
-    ) {
-      const year = date.getFullYear();
-
-      const month = String(
-        date.getMonth() + 1
-      ).padStart(2, '0');
-
-      const day = String(
-        date.getDate()
-      ).padStart(2, '0');
-
-      return `${year}-${month}-${day}`;
-    }
-
-    const targetTz =
-      timeZone || 'Asia/Riyadh';
-
-    const formatter =
-      new Intl.DateTimeFormat(
-        'en-CA',
-        {
-          timeZone: targetTz,
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-        }
-      );
-
-    return formatter.format(date);
-  } catch {
-    const year =
-      date.getFullYear();
-
-    const month = String(
-      date.getMonth() + 1
-    ).padStart(2, '0');
-
-    const day = String(
-      date.getDate()
-    ).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-  }
-}
-
+import {
+  addDays,
+  membershipDate,
+  programDate,
+  weekdayOf,
+} from './programDate.ts';
 
 /**
  * Parse YYYY-MM-DD as UTC midnight.
@@ -276,11 +225,40 @@ export function isPausedDate(
 }
 
 
+/**
+ * «المراجعة البعيدة» dates that are non-program days: within
+ * [start, target], not a rest day and not paused (a paused
+ * date is already excluded from the program).
+ */
+export function getDistantReviewDaysInPeriod(
+  settings: GroupSettings,
+  restDays: RestDay[],
+  startDateStr: string,
+  targetDateStr: string
+): string[] {
+  const restSet = new Set(
+    restDays.map((r) => r.date)
+  );
+
+  return [
+    ...new Set(
+      settings.distant_review_dates || []
+    ),
+  ].filter(
+    (d) =>
+      d >= startDateStr &&
+      d <= targetDateStr &&
+      !restSet.has(d) &&
+      !isPausedDate(settings, d)
+  );
+}
+
+
 export function calculateCycleInfo(
   settings: GroupSettings,
   restDays: RestDay[],
   targetDateStr: string =
-    formatDate()
+    programDate()
 ): CycleInfo {
   const totalQuarters =
     settings.total_quarters || 240;
@@ -332,6 +310,7 @@ export function calculateCycleInfo(
       is_rest_day: false,
       rest_day_note:
         undefined,
+      is_distant_review_day: false,
 
       is_paused:
         !!settings.is_paused,
@@ -343,6 +322,7 @@ export function calculateCycleInfo(
 
       days_elapsed: 0,
       rest_days_count: 0,
+      distant_review_days_count: 0,
       paused_days_count: 0,
 
       start_date:
@@ -437,9 +417,28 @@ export function calculateCycleInfo(
       currentPauseDays;
   }
 
+  /*
+   * «المراجعة البعيدة» days do not advance the
+   * normal program either (never counted twice:
+   * a rest or paused date is already excluded).
+   */
+  const distantDays =
+    getDistantReviewDaysInPeriod(
+      settings,
+      restDays,
+      startDate,
+      targetDateStr
+    );
+
+  const isDistantReviewDay =
+    distantDays.includes(
+      targetDateStr
+    );
+
   let calculatedCycleDay =
     daysElapsed -
     restDaysCount -
+    distantDays.length -
     totalPausedDays;
 
   /*
@@ -506,6 +505,9 @@ export function calculateCycleInfo(
     rest_day_note:
       todayRestDay?.note,
 
+    is_distant_review_day:
+      isDistantReviewDay,
+
     is_paused:
       !!settings.is_paused,
 
@@ -520,6 +522,9 @@ export function calculateCycleInfo(
 
     rest_days_count:
       restDaysCount,
+
+    distant_review_days_count:
+      distantDays.length,
 
     paused_days_count:
       totalPausedDays,
@@ -730,7 +735,8 @@ export function calculateMemberRequiredQuarter(
  * Returns all obligation dates from the
  * cycle beginning until target date.
  *
- * Global rest days are excluded.
+ * Global rest days and «المراجعة البعيدة»
+ * days are excluded.
  *
  * While the program is currently paused,
  * dates beginning at paused_at are also
@@ -742,53 +748,31 @@ export function getActiveCycleDates(
   restDays: RestDay[] = [],
   settings?: GroupSettings
 ): string[] {
-  const startMs =
-    parseDateStringToMidnightMs(
-      startDateStr
-    );
-
-  const targetMs =
-    parseDateStringToMidnightMs(
-      targetDateStr
-    );
-
-  if (targetMs < startMs) {
+  if (targetDateStr < startDateStr) {
     return [];
   }
 
-  const msPerDay =
-    1000 * 60 * 60 * 24;
-
-  const totalDays =
-    Math.floor(
-      (targetMs - startMs) /
-        msPerDay
-    ) + 1;
-
+  /*
+   * «المراجعة البعيدة» days are not normal
+   * program days either.
+   */
   const restDaySet =
-    new Set(
-      restDays.map(
+    new Set([
+      ...restDays.map(
         (r) => r.date
-      )
-    );
+      ),
+      ...(settings?.distant_review_dates ||
+        []),
+    ]);
 
   const activeDates:
     string[] = [];
 
   for (
-    let i = 0;
-    i < totalDays;
-    i++
+    let dStr = startDateStr;
+    dStr <= targetDateStr;
+    dStr = addDays(dStr, 1)
   ) {
-    const curDate =
-      new Date(
-        startMs +
-          i * msPerDay
-      );
-
-    const dStr =
-      formatDate(curDate);
-
     if (
       restDaySet.has(dStr)
     ) {
@@ -878,7 +862,10 @@ export interface MemberRevisionStatus {
 /**
  * Calendar date (YYYY-MM-DD) on which a
  * member joined her current batch, from
- * the membership's joined_at timestamp.
+ * the membership's joined_at timestamp:
+ * its Makkah calendar date, the same in
+ * every browser, the Edge Functions and
+ * SQL (see membershipDate).
  */
 export function joinedOnDateFromTimestamp(
   joinedAt?: string | null
@@ -887,11 +874,7 @@ export function joinedOnDateFromTimestamp(
     return undefined;
   }
 
-  const parsed = new Date(joinedAt);
-
-  return Number.isNaN(parsed.getTime())
-    ? undefined
-    : formatDate(parsed);
+  return membershipDate(joinedAt);
 }
 
 
@@ -918,7 +901,7 @@ export function calculateMemberRevisionStatus(
   activeCycleDates: string[],
   revisionLogs: RevisionLog[],
   todayDateStr: string =
-    formatDate(),
+    programDate(),
   joinedOnDate?: string
 ): MemberRevisionStatus {
   const memberLogs =
@@ -1018,6 +1001,134 @@ export function calculateMemberRevisionStatus(
 }
 
 
+/**
+ * «المراجعة البعيدة»: is this assignment owed by a member?
+ * Its date has come, lies in the cycle, is not paused (a
+ * global pause suspends it: no obligation) and not a rest
+ * day, and the member had joined her batch by then. Same
+ * rule as public.complete_distant_review.
+ */
+export function isDistantReviewOwed(
+  assignment: Pick<DistantReviewAssignment, 'review_date'>,
+  settings: GroupSettings,
+  restDays: RestDay[],
+  todayDateStr: string,
+  joinedOnDate?: string
+): boolean {
+  const d = assignment.review_date;
+
+  if (
+    d > todayDateStr ||
+    d < settings.start_date
+  ) {
+    return false;
+  }
+
+  if (
+    isPausedDate(settings, d) ||
+    restDays.some((r) => r.date === d)
+  ) {
+    return false;
+  }
+
+  return !(
+    joinedOnDate &&
+    d < joinedOnDate
+  );
+}
+
+
+export interface MemberDistantReviewStatus {
+  /** Today's assignment when it is owed by the member (completed or not). */
+  todayAssignment: DistantReviewAssignment | null;
+  hasCompletedToday: boolean;
+  /** Owed assignments of past dates that are not completed, oldest first. */
+  overdue: DistantReviewAssignment[];
+  overdueCount: number;
+  /** Everything still to do: overdue ones, then today's if not completed. */
+  outstanding: DistantReviewAssignment[];
+  completionByAssignment: Map<string, DistantReviewCompletion>;
+}
+
+
+/**
+ * A member's distant-review obligations. Identity is
+ * assignment_id + member_id: each scheduled day is its own
+ * obligation (never merged with another, even with an
+ * overlapping range) and a completion settles exactly that
+ * one, forever. Pass the ACTIVE cycle's assignments.
+ */
+export function calculateMemberDistantReviewStatus(
+  memberId: string,
+  assignments: DistantReviewAssignment[],
+  completions: DistantReviewCompletion[],
+  settings: GroupSettings,
+  restDays: RestDay[],
+  todayDateStr: string,
+  joinedOnDate?: string
+): MemberDistantReviewStatus {
+  const completionByAssignment =
+    new Map<string, DistantReviewCompletion>();
+
+  for (const c of completions) {
+    if (c.member_id === memberId) {
+      completionByAssignment.set(
+        c.assignment_id,
+        c
+      );
+    }
+  }
+
+  const owed = assignments
+    .filter((a) =>
+      isDistantReviewOwed(
+        a,
+        settings,
+        restDays,
+        todayDateStr,
+        joinedOnDate
+      )
+    )
+    .sort((a, b) =>
+      a.review_date.localeCompare(
+        b.review_date
+      )
+    );
+
+  const todayAssignment =
+    owed.find(
+      (a) =>
+        a.review_date ===
+        todayDateStr
+    ) || null;
+
+  const hasCompletedToday =
+    !!todayAssignment &&
+    completionByAssignment.has(
+      todayAssignment.id
+    );
+
+  const overdue = owed.filter(
+    (a) =>
+      a.review_date < todayDateStr &&
+      !completionByAssignment.has(a.id)
+  );
+
+  return {
+    todayAssignment,
+    hasCompletedToday,
+    overdue,
+    overdueCount: overdue.length,
+    outstanding:
+      todayAssignment &&
+      !hasCompletedToday
+        ? [...overdue, todayAssignment]
+        : overdue,
+    completionByAssignment,
+  };
+}
+
+
 export interface WeekRange {
   startDate: string;
 
@@ -1038,51 +1149,24 @@ export interface WeekRange {
  */
 export function getCurrentWeekRange(
   todayDateStr: string =
-    formatDate(),
+    programDate(),
   settingsStartDate?: string,
-  restDays: RestDay[] = []
+  restDays: RestDay[] = [],
+  // «المراجعة البعيدة» dates: no normal recitation is due on them either.
+  distantReviewDates: string[] = []
 ): WeekRange {
-  const parts =
-    todayDateStr
-      .split('-')
-      .map(Number);
-
-  const localDate =
-    new Date(
-      parts[0],
-      parts[1] - 1,
-      parts[2],
-      12,
-      0,
-      0
-    );
-
-  const dayOfWeek =
-    localDate.getDay();
-
+  // weekday: 0 = Sunday … 6 = Saturday
   const daysSinceSaturday =
-    (dayOfWeek + 1) % 7;
-
-  const satDate =
-    new Date(localDate);
-
-  satDate.setDate(
-    localDate.getDate() -
-      daysSinceSaturday
-  );
-
-  const friDate =
-    new Date(satDate);
-
-  friDate.setDate(
-    satDate.getDate() + 6
-  );
+    (weekdayOf(todayDateStr) + 1) % 7;
 
   const startDate =
-    formatDate(satDate);
+    addDays(
+      todayDateStr,
+      -daysSinceSaturday
+    );
 
   const endDate =
-    formatDate(friDate);
+    addDays(startDate, 6);
 
   const daysPassed =
     daysSinceSaturday + 1;
@@ -1091,18 +1175,16 @@ export function getCurrentWeekRange(
     string[] = [];
 
   const restDaySet =
-    new Set(
-      restDays.map(
+    new Set([
+      ...restDays.map(
         (r) => r.date
-      )
-    );
+      ),
+      ...distantReviewDates,
+    ]);
 
   const effectiveStart =
     settingsStartDate ||
     startDate;
-
-  const iter =
-    new Date(satDate);
 
   for (
     let i = 0;
@@ -1110,7 +1192,7 @@ export function getCurrentWeekRange(
     i++
   ) {
     const dStr =
-      formatDate(iter);
+      addDays(startDate, i);
 
     if (
       dStr <= todayDateStr &&
@@ -1121,10 +1203,6 @@ export function getCurrentWeekRange(
         dStr
       );
     }
-
-    iter.setDate(
-      iter.getDate() + 1
-    );
   }
 
   return {

@@ -11,14 +11,9 @@ import {
   errorResponse,
   type ActiveCaller,
 } from '../_shared/auth.ts';
-import {
-  calculateCycleInfo,
-  getActiveCycleDates,
-  joinedOnDateFromTimestamp,
-} from '../_shared/logic/calculations.ts';
-import { computeMemberDelayStatus, type MemberDelayStatus } from '../_shared/logic/memberDelayStatus.ts';
-import { buildProgramSettings, revisionDateForProgramDay } from '../_shared/logic/programState.ts';
-import type { RestDay } from '../_shared/logic/programTypes.ts';
+import type { MemberDelayStatus } from '../_shared/logic/memberDelayStatus.ts';
+import { computeBatchDelays, loadBatchProgram } from '../_shared/logic/batchDelays.ts';
+import { programDate } from '../_shared/logic/programDate.ts';
 import { estimateRangeLines, generateTestQuestions, type TestQuestion } from '../_shared/peer-tests/testGenerator.ts';
 import {
   evaluateCandidate,
@@ -57,15 +52,6 @@ type BatchProgress = {
 };
 
 const PAGE = 1000;
-
-function cairoToday(): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Africa/Cairo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
-}
 
 function toInt(value: unknown): number | null {
   const n = Number(value);
@@ -116,92 +102,30 @@ async function loadActiveCycle(admin: SupabaseClient, batchId: string): Promise<
 
 /*
  * Progress of every active member of the cycle's batch, computed with the
- * SAME shared code as the dashboards (computeMemberDelayStatus).
+ * SAME shared code as the dashboards (loadBatchProgram / computeBatchDelays:
+ * pauses, rest days and «المراجعة البعيدة» days are non-program days) on the
+ * program date (the day starts at 05:00 Africa/Cairo).
  */
 async function loadBatchProgress(admin: SupabaseClient, cycle: CycleRow): Promise<BatchProgress> {
-  const [pausesRes, restRes, membershipsRes] = await Promise.all([
-    admin.from('program_pauses').select('paused_on, resumed_on').eq('cycle_id', cycle.id),
-    admin.from('group_rest_days').select('id, rest_date, reason, created_at').eq('cycle_id', cycle.id),
-    admin
-      .from('batch_memberships')
-      .select('user_id, joined_at, profile:profiles!batch_memberships_user_id_fkey(id, full_name, role, active)')
-      .eq('batch_id', cycle.batch_id)
-      .eq('membership_role', 'member'),
-  ]);
-  for (const r of [pausesRes, restRes, membershipsRes]) {
-    if (r.error) throw new HttpError(r.error.message, 500);
+  let program;
+  try {
+    program = await loadBatchProgram(admin, cycle);
+  } catch (e) {
+    throw new HttpError((e as Error).message, 500);
   }
+  const { cycleInfo, members, delayById } = computeBatchDelays(program, programDate());
 
-  const [tasmiaRows, reviewRows] = await Promise.all([
-    fetchAll<{ user_id: string; quarter_number: number }>((from, to) =>
-      admin
-        .from('tasmia_submissions')
-        .select('user_id, quarter_number')
-        .eq('cycle_id', cycle.id)
-        .order('id')
-        .range(from, to)
-    ),
-    fetchAll<{ user_id: string; program_day: number; confirmed_at: string }>((from, to) =>
-      admin
-        .from('review_confirmations')
-        .select('user_id, program_day, confirmed_at')
-        .eq('cycle_id', cycle.id)
-        .order('id')
-        .range(from, to)
-    ),
-  ]);
-
-  const today = cairoToday();
-  const settings = buildProgramSettings(cycle, pausesRes.data || []);
-  const restDays: RestDay[] = (restRes.data || []).map((r) => ({
-    id: r.id,
-    date: r.rest_date,
-    note: r.reason || '',
-    added_by_admin_id: '',
-    created_at: r.created_at,
-  }));
-  const cycleInfo = calculateCycleInfo(settings, restDays, today);
-  const activeDates = getActiveCycleDates(cycle.starts_on, today, restDays, settings);
-
-  const recitations = tasmiaRows.map((r) => ({ member_id: r.user_id, quarter_number: r.quarter_number }));
-  const revisions = reviewRows.map((r) => ({
-    member_id: r.user_id,
-    date: revisionDateForProgramDay(activeDates, r.program_day, r.confirmed_at),
-  }));
-
-  const members: BatchMember[] = [];
-  for (const row of (membershipsRes.data || []) as unknown as {
-    user_id: string;
-    joined_at: string;
-    profile: { id: string; full_name: string; role: string; active: boolean } | null;
-  }[]) {
-    if (row.profile && row.profile.role === 'member' && row.profile.active) {
-      members.push({ id: row.profile.id, name: row.profile.full_name, joined_at: row.joined_at });
-    }
-  }
-
-  const delayById = new Map<string, MemberDelayStatus>();
-  const completedById = new Map<string, Set<number>>();
-  for (const m of members) {
-    delayById.set(
-      m.id,
-      computeMemberDelayStatus({
-        memberId: m.id,
-        quarterOfDay: cycleInfo.quarter_of_day,
-        activeCycleDates: activeDates,
-        recitations,
-        revisions,
-        todayDate: today,
-        joinedOnDate: joinedOnDateFromTimestamp(m.joined_at),
-      })
-    );
-    completedById.set(m.id, new Set());
-  }
-  for (const r of tasmiaRows) {
+  const completedById = new Map<string, Set<number>>(members.map((m) => [m.id, new Set<number>()]));
+  for (const r of program.tasmia) {
     completedById.get(r.user_id)?.add(r.quarter_number);
   }
 
-  return { quarterOfDay: cycleInfo.quarter_of_day, members, delayById, completedById };
+  return {
+    quarterOfDay: cycleInfo.quarter_of_day,
+    members: members.map((m) => ({ id: m.id, name: m.name, joined_at: m.joined_at })),
+    delayById,
+    completedById,
+  };
 }
 
 async function passedCandidateIds(admin: SupabaseClient, testId: string): Promise<Set<string>> {

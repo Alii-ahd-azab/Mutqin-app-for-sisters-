@@ -9,6 +9,8 @@ export interface QuarterDetail {
   surahName: string;
   surahNumber: number;
   ayahStart: number;
+  // Mushaf page of the quarter's opening ayah (derived from mushafLines.json)
+  page: number;
   ayahText: string;
 }
 
@@ -34,6 +36,7 @@ export const ALL_QUARTERS: QuarterDetail[] = quartersJson.map((item) => ({
   surahName: item.surahName,
   surahNumber: item.surahNumber,
   ayahStart: item.ayahNumber,
+  page: item.page,
   ayahText: item.ayahText,
 }));
 
@@ -135,4 +138,25 @@ export function getRangeBounds(startQuarter: number, endQuarter: number): Quarte
   };
 
   return { start, stop };
+}
+
+/**
+ * «المراجعة البعيدة» range: «من الربع X» starts at the beginning of quarter X and «إلى الربع Y» is
+ * the stopping boundary — the BEGINNING of quarter Y (Y itself is not reviewed). Only for distant
+ * reviews; the daily review keeps getRangeBounds (end quarter included).
+ */
+export function getDistantReviewBounds(fromQuarter: number, toQuarter: number): QuarterBoundsResult {
+  const bound = (q: QuarterDetail): QuarterBound => ({
+    surahName: q.surahName,
+    surahNumber: q.surahNumber,
+    ayahNumber: q.ayahStart,
+    ayahText: q.ayahText,
+    label: `سورة ${q.surahName} - الآية ${q.ayahStart}`,
+  });
+  return { start: bound(getQuarterInfo(fromQuarter)), stop: bound(getQuarterInfo(toQuarter)) };
+}
+
+/** Number of quarters reviewed in a distant-review range (the TO quarter is the boundary). */
+export function distantReviewQuarterCount(fromQuarter: number, toQuarter: number): number {
+  return Math.max(0, toQuarter - fromQuarter);
 }
