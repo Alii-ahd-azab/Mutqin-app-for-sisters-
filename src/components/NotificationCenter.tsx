@@ -9,6 +9,7 @@ import {
   CalendarCheck,
   CircleAlert,
   History,
+  RotateCcw,
   ShieldAlert,
   SlidersHorizontal,
   UserCog,
@@ -17,14 +18,16 @@ import {
 } from 'lucide-react';
 import {
   adminAlertText,
-  arabicLateDays,
+  alertIssueText,
+  dismissalKey,
   isUnread,
+  panelSeenKeys,
   type BatchAdminAlert,
   type MemberNotification,
   type NotificationState,
   type NotificationTone,
 } from '../lib/notifications';
-import type { NotificationSnapshot } from '../api/client';
+import type { AlertDismissal, NotificationSnapshot } from '../api/client';
 
 /*
  * Header bell for members, batch admins and master admins (same behaviour as Mutqin for Men). The notifications are DERIVED from the
@@ -32,10 +35,12 @@ import type { NotificationSnapshot } from '../api/client';
  * interactions, which the app stores per notification key (public.notification_states):
  *   opening the panel   → the visible NON-urgent notifications become seen (badge drops); nothing
  *                         is archived and they stay in the list
- *   clicking an item    → it is archived (leaves the active list, stays in «عرض كل التنبيهات») and
- *                         its deep link opens
- * An urgent notification counts in the badge until it is clicked. The red control follows the
- * CONDITION: it stays red while any urgent condition exists, even after its notification was archived.
+ *   clicking an item    → its deep link opens and it is archived (leaves the active list, stays in
+ *                         «عرض كل التنبيهات»). Exception: a member's own 3+ debt warning is only
+ *                         marked seen and STAYS active until the debt falls below 3.
+ * Admins see one card per member; X hides that member's card for this admin only
+ * (admin_alert_dismissals) until he restores it from «المستبعدة».
+ * The red control follows the CONDITION: it stays red while an urgent condition exists.
  */
 
 const TONES: Record<NotificationTone, { box: string; title: string; icon: React.ReactNode; dot: string }> = {
@@ -46,8 +51,6 @@ const TONES: Record<NotificationTone, { box: string; title: string; icon: React.
   distant: { box: 'bg-fuchsia-50 border-fuchsia-200', title: 'text-fuchsia-950', icon: <BookMarked className="w-4 h-4 text-fuchsia-700" />, dot: 'bg-fuchsia-600' },
 };
 
-const CATEGORY_LABEL: Record<BatchAdminAlert['category'], string> = { tasmia: 'التسميع', revision: 'المراجعة' };
-
 const KIND_LABEL: Record<string, string> = {
   'tasmia-overdue': 'تسميع متأخر',
   'revision-overdue': 'مراجعة متأخرة',
@@ -56,8 +59,7 @@ const KIND_LABEL: Record<string, string> = {
   'rest-tomorrow': 'يوم راحة غدًا',
   'distant-day': 'مراجعة بعيدة',
   'distant-tomorrow': 'مراجعة بعيدة غدًا',
-  'admin-tasmia': 'تأخر شديد في التسميع',
-  'admin-revision': 'تأخر شديد في المراجعة',
+  'admin-member': 'تأخر شديد لعضوة',
 };
 
 const formatWhen = (iso: string) =>
@@ -74,7 +76,7 @@ export const memberSnapshot = (n: MemberNotification): NotificationSnapshot => (
 
 export const adminSnapshot = (a: BatchAdminAlert): NotificationSnapshot => ({
   key: a.key,
-  kind: `admin-${a.category}`,
+  kind: 'admin-member',
   tone: 'serious',
   urgent: true,
   ...adminAlertText(a),
@@ -96,28 +98,37 @@ type Props = {
       mode: 'admin';
       items: BatchAdminAlert[];
       onOpen: (a: BatchAdminAlert, action: 'manage' | 'exclude') => void;
+      // This admin's own dismissed member alerts, keyed by dismissalKey(batch, member).
+      dismissals: Map<string, AlertDismissal>;
+      onDismiss: (a: BatchAdminAlert) => void;
+      onRestore: (batchId: string, memberId: string) => void;
       // Master admins only: which batches she follows.
       follow?: FollowSettings;
     }
 );
 
-type Entry = { key: string; urgent: boolean; snapshot: NotificationSnapshot };
+type Entry = { key: string; urgent: boolean; persistent: boolean; snapshot: NotificationSnapshot };
+type HistoryTab = 'current' | 'archived' | 'dismissed';
 
 export const NotificationCenter: React.FC<Props> = (props) => {
   const { states, onSeen, onArchive } = props;
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'list' | 'settings'>('list');
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyTab, setHistoryTab] = useState<HistoryTab | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const dismissals = props.mode === 'admin' ? props.dismissals : null;
 
   const entries: Entry[] = useMemo(
     () =>
       props.mode === 'member'
-        ? props.items.map((n) => ({ key: n.key, urgent: n.urgent, snapshot: memberSnapshot(n) }))
-        : props.items.map((a) => ({ key: a.key, urgent: true, snapshot: adminSnapshot(a) })),
-    [props.mode, props.items]
+        ? props.items.map((n) => ({ key: n.key, urgent: n.urgent, persistent: n.persistent, snapshot: memberSnapshot(n) }))
+        : props.items
+            // A dismissed member card is not shown, counted or kept red for this admin.
+            .filter((a) => !dismissals?.has(dismissalKey(a.batchId, a.memberId)))
+            .map((a) => ({ key: a.key, urgent: true, persistent: false, snapshot: adminSnapshot(a) })),
+    [props.mode, props.items, dismissals]
   );
-  const active = useMemo(() => entries.filter((e) => !states.get(e.key)?.archivedAt), [entries, states]);
+  const active = useMemo(() => entries.filter((e) => e.persistent || !states.get(e.key)?.archivedAt), [entries, states]);
   const unreadCount = useMemo(() => active.filter((e) => isUnread(e, states.get(e.key))).length, [active, states]);
   // The CONDITION decides the red state (archived or not).
   const urgentCondition = entries.some((e) => e.urgent);
@@ -148,19 +159,30 @@ export const NotificationCenter: React.FC<Props> = (props) => {
     if (open) return close();
     setOpen(true);
     // Opening the panel: visible non-urgent notifications are seen (not archived).
-    const toSee = active.filter((e) => !e.urgent && !states.get(e.key)?.seenAt).map((e) => e.snapshot);
+    const keys = new Set(panelSeenKeys(active, states));
+    const toSee = active.filter((e) => keys.has(e.key)).map((e) => e.snapshot);
     if (toSee.length) onSeen(toSee);
   };
 
-  const archive = (key: string) => {
+  // Clicking a notification: archived — or, for a persistent warning, only seen (it stays active).
+  const clicked = (key: string) => {
     const e = entries.find((x) => x.key === key);
-    if (e && !states.get(key)?.archivedAt) onArchive(e.snapshot);
+    if (!e) return;
+    const s = states.get(key);
+    if (e.persistent) {
+      if (!s?.seenAt) onSeen([e.snapshot]);
+    } else if (!s?.archivedAt) {
+      onArchive(e.snapshot);
+    }
   };
 
   const follow = props.mode === 'admin' ? props.follow : undefined;
   const archivedHistory = useMemo(
-    () => [...states.values()].filter((s) => s.archivedAt).sort((a, b) => (b.archivedAt! < a.archivedAt! ? -1 : 1)),
-    [states]
+    () =>
+      [...states.values()]
+        .filter((s) => s.archivedAt && !(props.mode === 'member' && entries.some((e) => e.persistent && e.key === s.key)))
+        .sort((a, b) => (b.archivedAt! < a.archivedAt! ? -1 : 1)),
+    [states, entries, props.mode]
   );
   const currentKeys = new Set(entries.map((e) => e.key));
 
@@ -176,9 +198,9 @@ export const NotificationCenter: React.FC<Props> = (props) => {
         data-urgent={n.urgent}
         type="button"
         onClick={() => {
-          archive(n.key);
+          clicked(n.key);
           close();
-          setHistoryOpen(false);
+          setHistoryTab(null);
           if (props.mode === 'member') props.onOpen(n);
         }}
         className={`w-full text-right rounded-xl border p-3 flex items-start gap-2.5 transition cursor-pointer hover:brightness-[0.98] ${t.box}`}
@@ -201,21 +223,31 @@ export const NotificationCenter: React.FC<Props> = (props) => {
   const renderAdmin = (a: BatchAdminAlert) => {
     const unread = isUnread(a, states.get(a.key));
     const go = (action: 'manage' | 'exclude') => {
-      archive(a.key);
+      clicked(a.key);
       close();
-      setHistoryOpen(false);
+      setHistoryTab(null);
       if (props.mode === 'admin') props.onOpen(a, action);
     };
     return (
       <div
         key={a.key}
-        id={`admin-alert-${a.memberId}-${a.category}`}
+        id={`admin-alert-${a.memberId}`}
         data-tone="serious"
         data-unread={unread}
         data-urgent="true"
-        className="rounded-xl border border-rose-300 bg-rose-50 p-3 space-y-2"
+        className="relative rounded-xl border border-rose-300 bg-rose-50 p-3 space-y-2"
       >
-        <button type="button" onClick={() => go('manage')} className="w-full text-right flex items-start gap-2.5 cursor-pointer">
+        <button
+          id={`dismiss-alert-${a.memberId}`}
+          type="button"
+          onClick={() => props.mode === 'admin' && props.onDismiss(a)}
+          title="إخفاء تنبيه هذه العضوة (يمكن استعادته من «المستبعدة»)"
+          aria-label={`إخفاء تنبيه ${a.memberName}`}
+          className="absolute top-2 left-2 p-1 rounded-lg text-rose-400 hover:text-rose-700 hover:bg-rose-100 cursor-pointer"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+        <button type="button" onClick={() => go('manage')} className="w-full text-right flex items-start gap-2.5 cursor-pointer pl-6">
           <ShieldAlert className="w-4 h-4 text-rose-600 mt-0.5 shrink-0" />
           <span className="min-w-0 flex-1">
             <span className={`block text-xs text-rose-950 ${unread ? 'font-bold' : 'font-semibold'}`}>{a.memberName}</span>
@@ -223,9 +255,14 @@ export const NotificationCenter: React.FC<Props> = (props) => {
               {a.phone}
             </span>
             <span className="block text-[11px] text-stone-600">{a.batchName}</span>
-            <span className="block text-[11px] text-rose-800 font-bold mt-0.5">
-              {arabicLateDays(a.count)} في {CATEGORY_LABEL[a.category]}
-            </span>
+            <ul className="mt-1 space-y-0.5">
+              {a.issues.map((i) => (
+                <li key={i.category} data-category={i.category} className="alert-issue flex items-start gap-1.5 text-[11px] text-rose-800 font-bold">
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-rose-600 shrink-0" aria-hidden />
+                  <span>{alertIssueText(i)}</span>
+                </li>
+              ))}
+            </ul>
           </span>
           {unread && <span className="mt-1.5 w-2 h-2 rounded-full shrink-0 bg-rose-600" aria-label="غير مقروء" />}
         </button>
@@ -265,6 +302,14 @@ export const NotificationCenter: React.FC<Props> = (props) => {
       : follow && follow.followed.size === 0
       ? 'لا تتابعين أي دفعة بعد. اختاري الدفعات من «إعدادات التنبيهات».'
       : 'لا توجد عضوة جديدة بلغ تأخرها 3 أيام في التسميع أو المراجعة.';
+
+  const dismissedList = dismissals ? [...dismissals.values()].sort((a, b) => (b.dismissedAt < a.dismissedAt ? -1 : 1)) : [];
+  const activeAlertMembers = new Set(props.mode === 'admin' ? props.items.map((a) => dismissalKey(a.batchId, a.memberId)) : []);
+  const tabs: [HistoryTab, string, number][] = [
+    ['current', 'الحالية', active.length],
+    ['archived', 'المؤرشفة', archivedHistory.length],
+    ...(props.mode === 'admin' ? ([['dismissed', 'المستبعدة', dismissedList.length]] as [HistoryTab, string, number][]) : []),
+  ];
 
   return (
     <div className="relative" ref={wrapRef}>
@@ -380,7 +425,7 @@ export const NotificationCenter: React.FC<Props> = (props) => {
                   type="button"
                   onClick={() => {
                     close();
-                    setHistoryOpen(true);
+                    setHistoryTab('current');
                   }}
                   className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-pink-700 hover:bg-pink-50 cursor-pointer"
                 >
@@ -395,48 +440,104 @@ export const NotificationCenter: React.FC<Props> = (props) => {
 
       {/* Rendered on document.body: the Sisters header has backdrop-blur, and a backdrop-filter
           ancestor would confine this fixed overlay to the header's box instead of the viewport. */}
-      {historyOpen &&
+      {historyTab &&
         createPortal(
         <div
           className="fixed inset-0 z-50 bg-stone-900/40 flex items-start sm:items-center justify-center p-3"
-          onMouseDown={(e) => e.target === e.currentTarget && setHistoryOpen(false)}
+          onMouseDown={(e) => e.target === e.currentTarget && setHistoryTab(null)}
         >
           <div id="notifications-history" role="dialog" aria-label="كل التنبيهات" className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-stone-200 overflow-hidden mt-14 sm:mt-0">
             <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
               <h2 className="text-sm font-bold text-stone-900">كل التنبيهات</h2>
-              <button type="button" onClick={() => setHistoryOpen(false)} title="إغلاق" className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-50 cursor-pointer">
+              <button type="button" onClick={() => setHistoryTab(null)} title="إغلاق" className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-50 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="max-h-[75vh] overflow-y-auto p-3 space-y-4">
-              <section id="notifications-current" className="space-y-2">
-                <h3 className="text-xs font-bold text-stone-700">التنبيهات الحالية ({active.length})</h3>
-                {active.length === 0 ? <p className="text-[11px] text-stone-500">لا توجد تنبيهات حالية.</p> : renderActive()}
-              </section>
-              <section id="notifications-archive" className="space-y-2">
-                <h3 className="text-xs font-bold text-stone-700">المؤرشفة ({archivedHistory.length})</h3>
-                {archivedHistory.length === 0 && <p className="text-[11px] text-stone-500">لم تفتحي أي تنبيه بعد.</p>}
-                {archivedHistory.map((s) => {
-                  const tone = (s.tone in TONES ? s.tone : 'info') as NotificationTone;
-                  const stillActive = currentKeys.has(s.key);
-                  return (
-                    <div key={s.key} data-kind={s.kind} className="archived-notification rounded-xl border border-stone-200 bg-stone-50 p-3 flex items-start gap-2.5">
-                      <span className="mt-0.5 shrink-0 opacity-70">{TONES[tone].icon}</span>
-                      <span className="min-w-0 flex-1 space-y-0.5">
-                        <span className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white border border-stone-200 text-stone-600">{KIND_LABEL[s.kind] || 'تنبيه'}</span>
-                          {stillActive && s.urgent && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-rose-100 border border-rose-200 text-rose-800 font-bold">الحالة ما زالت قائمة</span>
-                          )}
+            <div role="tablist" className="flex gap-1 px-3 pt-3">
+              {tabs.map(([tab, label, count]) => (
+                <button
+                  key={tab}
+                  id={`notifications-tab-${tab}`}
+                  role="tab"
+                  type="button"
+                  aria-selected={historyTab === tab}
+                  onClick={() => setHistoryTab(tab)}
+                  className={`flex-1 px-2 py-1.5 rounded-lg text-[11px] font-bold border cursor-pointer ${
+                    historyTab === tab ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
+                  }`}
+                >
+                  {label} ({count})
+                </button>
+              ))}
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto p-3 space-y-2">
+              {historyTab === 'current' && (
+                <section id="notifications-current" className="space-y-2">
+                  {active.length === 0 ? <p className="text-[11px] text-stone-500">لا توجد تنبيهات حالية.</p> : renderActive()}
+                </section>
+              )}
+              {historyTab === 'archived' && (
+                <section id="notifications-archive" className="space-y-2">
+                  {archivedHistory.length === 0 && <p className="text-[11px] text-stone-500">لم تفتحي أي تنبيه بعد.</p>}
+                  {archivedHistory.map((s) => {
+                    const tone = (s.tone in TONES ? s.tone : 'info') as NotificationTone;
+                    const stillActive = currentKeys.has(s.key);
+                    return (
+                      <div key={s.key} data-kind={s.kind} className="archived-notification rounded-xl border border-stone-200 bg-stone-50 p-3 flex items-start gap-2.5">
+                        <span className="mt-0.5 shrink-0 opacity-70">{TONES[tone].icon}</span>
+                        <span className="min-w-0 flex-1 space-y-0.5">
+                          <span className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white border border-stone-200 text-stone-600">{KIND_LABEL[s.kind] || 'تنبيه'}</span>
+                            {stillActive && s.urgent && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-rose-100 border border-rose-200 text-rose-800 font-bold">الحالة ما زالت قائمة</span>
+                            )}
+                          </span>
+                          <span className="block text-xs font-semibold text-stone-800">{s.title}</span>
+                          <span className="block text-[11px] text-stone-600 leading-relaxed">{s.body}</span>
+                          <span className="block text-[10px] text-stone-400">فُتح في {formatWhen(s.archivedAt!)}</span>
                         </span>
-                        <span className="block text-xs font-semibold text-stone-800">{s.title}</span>
-                        <span className="block text-[11px] text-stone-600 leading-relaxed">{s.body}</span>
-                        <span className="block text-[10px] text-stone-400">فُتح في {formatWhen(s.archivedAt!)}</span>
-                      </span>
-                    </div>
-                  );
-                })}
-              </section>
+                      </div>
+                    );
+                  })}
+                </section>
+              )}
+              {historyTab === 'dismissed' && props.mode === 'admin' && (
+                <section id="notifications-dismissed" className="space-y-2">
+                  {dismissedList.length === 0 && <p className="text-[11px] text-stone-500">لم تستبعدي أي تنبيه.</p>}
+                  {dismissedList.map((d) => {
+                    const k = dismissalKey(d.batchId, d.memberId);
+                    const stillSerious = activeAlertMembers.has(k);
+                    return (
+                      <div key={k} id={`dismissed-alert-${d.memberId}`} className="rounded-xl border border-stone-200 bg-stone-50 p-3 flex items-start gap-2.5">
+                        <ShieldAlert className="w-4 h-4 text-stone-400 mt-0.5 shrink-0" />
+                        <span className="min-w-0 flex-1 space-y-0.5">
+                          <span className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-semibold text-stone-800">{d.memberName}</span>
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded-md border font-bold ${
+                                stillSerious ? 'bg-rose-100 border-rose-200 text-rose-800' : 'bg-white border-stone-200 text-stone-500'
+                              }`}
+                            >
+                              {stillSerious ? 'التأخر الشديد ما زال قائمًا' : 'لم تعد متأخرة تأخرًا شديدًا'}
+                            </span>
+                          </span>
+                          <span className="block text-[11px] text-stone-600 leading-relaxed">{d.summary}</span>
+                          <span className="block text-[10px] text-stone-400">استُبعد في {formatWhen(d.dismissedAt)}</span>
+                        </span>
+                        <button
+                          id={`restore-alert-${d.memberId}`}
+                          type="button"
+                          onClick={() => props.onRestore(d.batchId, d.memberId)}
+                          className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-white border border-pink-300 text-pink-700 hover:bg-pink-50 cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          إعادة إظهار التنبيه
+                        </button>
+                      </div>
+                    );
+                  })}
+                </section>
+              )}
             </div>
           </div>
         </div>,

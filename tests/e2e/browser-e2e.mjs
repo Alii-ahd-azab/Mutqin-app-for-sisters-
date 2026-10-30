@@ -33,7 +33,7 @@ const ids = {
   m1: 'u-m1', m2: 'u-m2', m3: 'u-m3', mB: 'u-mb',
   batchA: 'b-a', batchB: 'b-b', cycleA: 'c-a', cycleB: 'c-b',
 };
-function world({ userId, distant = [], rest = [], tasmia = {}, reviews = {}, completions = [] }) {
+function world({ userId, distant = [], rest = [], tasmia = {}, reviews = {}, completions = [], pauses = [], follows = [] }) {
   const p = (id, full_name, phone, role, is_master_admin = false) => ({
     id, full_name, phone, role, active: true, created_at: '2026-10-01T00:00:00Z', deactivated_at: null, is_master_admin,
   });
@@ -62,7 +62,7 @@ function world({ userId, distant = [], rest = [], tasmia = {}, reviews = {}, com
     tasmia_submissions: [],
     review_confirmations: [],
     group_rest_days: rest.map((d) => ({ id: `r-${d}`, cycle_id: ids.cycleA, rest_date: d, reason: 'يوم استدراك', created_by: ids.adminA, created_at: '2026-10-01T00:00:00Z' })),
-    program_pauses: [],
+    program_pauses: pauses.map(([from, until]) => ({ id: `p-${from}`, cycle_id: ids.cycleA, paused_on: from, resumed_on: until, created_at: '2026-10-01T00:00:00Z' })),
     daily_thoughts: [],
     peer_tests: [],
     peer_test_attempts: [],
@@ -72,7 +72,8 @@ function world({ userId, distant = [], rest = [], tasmia = {}, reviews = {}, com
     })),
     distant_review_completions: completions,
     notification_states: [],
-    admin_notification_batch_subscriptions: [],
+    admin_notification_batch_subscriptions: follows.map(([admin, batch]) => ({ admin_user_id: ids[admin], batch_id: ids[batch], enabled: true })),
+    admin_alert_dismissals: [],
   };
   for (const [member, quarters] of Object.entries(tasmia)) {
     const cycle = member === 'mB' ? ids.cycleB : ids.cycleA;
@@ -93,6 +94,7 @@ async function open(instant, w, { keepStorage } = {}) {
   const context = await browser.newContext({ locale: 'ar-EG', viewport: { width: 1280, height: 900 }, timezoneId: 'Europe/London' });
   const page = await context.newPage();
   page.on('pageerror', (e) => record('no page error', false, e.message));
+  page.on('console', (m) => m.type() === 'error' && record('no console error', false, m.text().slice(0, 200)));
   await page.clock.install({ time: instant });
   await page.addInitScript(([wd, keep]) => {
     window.__E2E_WORLD__ = wd;
@@ -182,7 +184,10 @@ try {
   await page.click('#notification-tasmia-overdue');
   await page.waitForTimeout(700);
   record('deep link: Tasmi\'a notification opens the Tasmi\'a card (overdue quarter 5)', (await inViewport(page, '#tasmia-card')) && (await page.locator('#tasmia-card').innerText()).includes('الربع رقم 5'));
-  record('badge and urgency are independent: archived urgent → badge 0, control still red', (await badge(page)) === '0' && (await urgent(page)));
+  record('member 3+ warning: click marks it read (badge 0); the control stays red', (await badge(page)) === '0' && (await urgent(page)));
+  await openPanel(page);
+  record('member 3+ warning stays in the ACTIVE list after the click (debt still exists)', (await page.locator('#notification-tasmia-overdue').count()) === 1 && (await page.locator('#notification-tasmia-overdue').getAttribute('data-unread')) === 'false');
+  await closePanel(page);
   // Deep link: distant → the distant-review card of 26 Oct.
   await openPanel(page);
   await page.click('#notification-distant-overdue');
@@ -197,8 +202,11 @@ try {
   await openPanel(page);
   await page.click('#notifications-view-all');
   await page.waitForSelector('#notifications-history');
+  record('«عرض كل التنبيهات»: «الحالية» lists the persistent 3+ warning', (await page.locator('#notifications-current #notification-tasmia-overdue').count()) === 1);
+  record('member history has no «المستبعدة» tab (admins only)', (await page.locator('#notifications-tab-dismissed').count()) === 0);
+  await page.click('#notifications-tab-archived');
   const hist = await page.locator('#notifications-archive').innerText();
-  record('«عرض كل التنبيهات»: archived notifications with type and time', (await page.locator('.archived-notification').count()) === 3 && hist.includes('فُتح في') && hist.includes('تسميع متأخر') && hist.includes('الحالة ما زالت قائمة'), hist.slice(0, 200));
+  record('«المؤرشفة»: clicked non-urgent notifications with type and time (the 3+ one is not archived)', (await page.locator('.archived-notification').count()) === 2 && hist.includes('فُتح في') && hist.includes('مراجعة متأخرة') && !hist.includes('تسميع متأخر'), hist.slice(0, 200));
   await page.keyboard.press('Escape');
   await page.mouse.click(5, 5);
 
@@ -207,8 +215,22 @@ try {
   await page.waitForSelector('#notifications-button');
   await page.waitForTimeout(400);
   record('interaction state survives a reload (badge 0, still red)', (await badge(page)) === '0' && (await urgent(page)));
+  await openPanel(page);
+  record('member 3+ warning still active after reload', (await page.locator('#notification-tasmia-overdue').count()) === 1);
+  await closePanel(page);
+  const completions = () => page.evaluate(() => window.__e2e.world.tables.distant_review_completions.length);
   await page.click('#complete-distant-review-btn');
-  await page.waitForTimeout(600);
+  const dialog = await page.locator('#distant-confirm-dialog').innerText();
+  record('completion asks for confirmation first (feminine wording, date and range)', dialog.includes('هل أنتِ متأكدة من إتمام المراجعة البعيدة المطلوبة؟') && dialog.includes('26') && dialog.includes('من بداية الربع 3 حتى بداية الربع 9') && dialog.includes('نعم، تأكيد الإتمام') && dialog.includes('إلغاء'), dialog);
+  await shot(page, 'member-distant-confirm');
+  record('nothing submitted before confirming', (await completions()) === 0);
+  await page.click('#distant-confirm-cancel');
+  await page.waitForTimeout(300);
+  record('cancel: dialog closed, nothing submitted, card unchanged', (await page.locator('#distant-confirm-dialog').count()) === 0 && (await completions()) === 0 && (await page.locator('#complete-distant-review-btn').count()) === 1);
+  await page.click('#complete-distant-review-btn');
+  await page.locator('#distant-confirm-yes').dblclick();
+  await page.waitForTimeout(800);
+  record('confirm (double-click): exactly one completion', (await completions()) === 1);
   await page.locator('#history-tab-distant').click();
   const dh = await page.locator('#distant-history-2026-10-26').innerText();
   record('distant completion: late completion recorded in her history', dh.includes('تم الإنجاز (متأخرًا)') && dh.includes('من بداية الربع 3 حتى بداية الربع 9'), dh);
@@ -228,6 +250,46 @@ try {
   await openPanel(page);
   record('2 overdue days → stronger (orange) warning, new unread notification', (await tone('tasmia-overdue')) === 'strong' && /bg-orange-50/.test(await page.locator('#notification-tasmia-overdue').getAttribute('class')));
   await context.close();
+
+  // ================================================================== MEMBER: review 3+ persistence, then below 3
+  ({ page, context } = await open(NOON, world({ userId: ids.m1, tasmia: { m1: [1, 2, 3, 4, 5, 6, 7, 8] }, reviews: { m1: [1, 2, 3, 4, 5] } })));
+  await openPanel(page);
+  await page.click('#notification-revision-overdue');
+  await page.waitForTimeout(500);
+  await openPanel(page);
+  record('review 3+ warning survives the click (still active, still red)', (await page.locator('#notification-revision-overdue').count()) === 1 && (await tone('revision-overdue')) === 'serious' && (await urgent(page)));
+  await closePanel(page);
+  await page.evaluate(() => {
+    window.__e2e.world.tables.review_confirmations.push({ id: 'v-extra', cycle_id: 'c-a', user_id: 'u-m1', program_day: 6, start_quarter: 1, end_quarter: 6, confirmed_at: new Date().toISOString() });
+    window.__e2e.save();
+  });
+  await page.reload();
+  await page.waitForSelector('#notifications-button');
+  await page.waitForTimeout(400);
+  await openPanel(page);
+  record('review debt 2: serious warning and red control gone; orange warning shown', !(await urgent(page)) && (await tone('revision-overdue')) === 'strong');
+  record('non-urgent notifications keep the seen-on-open behaviour (badge 0 after opening)', (await badge(page)) === '0');
+  await context.close();
+
+  // ================================================================== DISTANT REVIEW during a global pause / on a rest day
+  for (const [label, extra] of [
+    ['global pause', { pauses: [['2026-10-27', null]] }],
+    ['rest day', { rest: ['2026-10-28'] }],
+  ]) {
+    ({ page, context } = await open(NOON, world({ userId: ids.m1, distant: [['2026-10-28', 4, 10, 'مطلوبة']], tasmia: { m1: [1, 2, 3, 4, 5, 6, 7, 8] }, reviews: { m1: [1, 2, 3, 4, 5, 6, 7, 8] }, ...extra })));
+    const card = page.locator('#distant-review-card');
+    record(`${label}: today's distant review is visible and required`, (await card.count()) === 1 && (await page.locator('#complete-distant-review-btn').count()) === 1 && (await page.locator('#distant-review-banner').count()) === 1);
+    record(`${label}: normal Tasmi'a paused (catch-up wording, no new quarter)`, (await page.locator('#tasmia-card').innerText()).includes('مواكبة') || (await page.locator('#tasmia-card').innerText()).includes('استدراك'));
+    record(`${label}: normal Muraja'a paused (no new daily review)`, (await page.locator('#revision-card').innerText()).includes('لا توجد مراجعة يومية جديدة'));
+    await openPanel(page);
+    record(`${label}: the distant review is the day's notification (no ambiguous free-day notice)`, (await page.locator('#notification-distant-day').count()) === 1 && (await page.locator('#notification-rest-day').count()) === 0);
+    await closePanel(page);
+    await page.click('#complete-distant-review-btn');
+    await page.click('#distant-confirm-yes');
+    await page.waitForTimeout(600);
+    record(`${label}: completion allowed`, (await page.evaluate(() => window.__e2e.world.tables.distant_review_completions.length)) === 1);
+    await context.close();
+  }
 
   // ================================================================== 05:00 CAIRO: app open across the boundary
   // Up to 27 Oct (program days 1..8) all done; 28 Oct is a distant-review day. At 04:59:30 it is still
@@ -284,24 +346,70 @@ try {
   await context.close();
 
   // ================================================================== BATCH ADMIN: serious alerts, scope, deep link
-  const adminWorld = (userId) => world({
+  const adminWorld = (userId, follows = []) => world({
     userId,
     tasmia: { m1: [1, 2, 3, 4, 8, 9], m2: [1, 2, 3, 4, 5, 6, 9], m3: [1, 2, 3, 4, 5, 6, 7, 9], mB: [1, 2, 3, 4, 5, 9] },
-    reviews: { m1: [1, 2, 3, 4, 5, 6, 7, 8], m2: [1, 2, 3, 4, 5, 6, 7, 8], m3: [1, 2, 3, 4, 5, 6, 7, 8], mB: [1, 2, 3, 4, 5, 6, 7, 8] },
+    // m1: 3 Tasmi'a + 3 review (one card, two lines); m3: 3 review only; m2: 2 Tasmi'a (no alert).
+    reviews: { m1: [1, 2, 3, 4, 5], m2: [1, 2, 3, 4, 5, 6, 7, 8], m3: [1, 2, 3, 4, 5], mB: [1, 2, 3, 4, 5, 6, 7, 8] },
+    follows,
   });
-  ({ page, context } = await open(NOON, adminWorld(ids.adminA)));
+  ({ page, context } = await open(NOON, adminWorld(ids.adminA, [['master', 'batchA']])));
   await openPanel(page);
   const alerts = page.locator('[id^="admin-alert-"]');
-  record('batch admin: only the 3+ member alerts (1 and 2 missed days give none)', (await alerts.count()) === 1 && (await page.locator(`#admin-alert-${ids.m1}-tasmia`).count()) === 1);
+  record('batch admin: one card per 3+ member (m1 and m3; 2 missed days give none)', (await alerts.count()) === 2 && (await page.locator(`#admin-alert-${ids.m1}`).count()) === 1 && (await page.locator(`#admin-alert-${ids.m3}`).count()) === 1 && (await page.locator(`#admin-alert-${ids.m2}`).count()) === 0);
+  const lines = await page.locator(`#admin-alert-${ids.m1} .alert-issue`).allInnerTexts();
+  record('grouped card: Tasmi\'a and Muraja\'a as separate lines in the SAME card', JSON.stringify(lines) === JSON.stringify(['3 أيام متأخرة في التسميع', '3 أيام متأخرة في المراجعة الذاتية']), JSON.stringify(lines));
+  record('grouped card: one set of actions', (await page.locator(`#admin-alert-${ids.m1}`).getByText('إدارة العضوة').count()) === 1 && (await page.locator(`#dismiss-alert-${ids.m1}`).count()) === 1);
+  await closePanel(page);
+  record('admin badge counts members (2), not categories (3)', (await badge(page)) === '2', await badge(page));
+  await openPanel(page);
   await shot(page, 'batch-admin-panel');
-  const alertText = await page.locator(`#admin-alert-${ids.m1}-tasmia`).innerText();
+  const alertText = await page.locator(`#admin-alert-${ids.m1}`).innerText();
   record('batch admin: alert shows name, phone, batch, category and count', ['عائشة محمد', '01012345678', 'الدفعة أ', '3 أيام متأخرة في التسميع'].every((s) => alertText.includes(s)), alertText);
-  record('batch admin: other batch (ب, 4 missed) not visible', (await page.locator(`#admin-alert-${ids.mB}-tasmia`).count()) === 0);
+  record('batch admin: other batch (ب, 4 missed) not visible', (await page.locator(`#admin-alert-${ids.mB}`).count()) === 0);
   record('batch admin: no batch-follow settings', (await page.locator('#notification-settings-btn').count()) === 0);
-  record('batch admin: serious styling and urgent red control', (await urgent(page)) && (await page.locator(`#admin-alert-${ids.m1}-tasmia`).getAttribute('data-tone')) === 'serious');
-  await page.locator(`#admin-alert-${ids.m1}-tasmia`).getByText('إدارة العضوة').click();
+  record('batch admin: serious styling and urgent red control', (await urgent(page)) && (await page.locator(`#admin-alert-${ids.m1}`).getAttribute('data-tone')) === 'serious');
+  await page.locator(`#admin-alert-${ids.m1}`).getByText('إدارة العضوة').click();
   await page.waitForTimeout(900);
   record('deep link: «إدارة الأعضاء» opens with the exact member focused', (await inViewport(page, `#member-row-${ids.m1}`)) && /notification-focus-row/.test(await page.locator(`#member-row-${ids.m1}`).getAttribute('class')));
+
+  // X: dismiss m3's whole card for this admin only.
+  await openPanel(page);
+  await page.click(`#dismiss-alert-${ids.m3}`);
+  await page.waitForTimeout(400);
+  record('X dismisses the whole member card (badge drops)', (await page.locator(`#admin-alert-${ids.m3}`).count()) === 0 && (await badge(page)) === '0');
+  await closePanel(page);
+  await page.reload();
+  await page.waitForSelector('#notifications-button');
+  await page.waitForTimeout(500);
+  await openPanel(page);
+  record('dismissal persists after reload', (await page.locator(`#admin-alert-${ids.m3}`).count()) === 0);
+  record('dismissal changes no member data', (await page.evaluate(() => window.__e2e.world.tables.review_confirmations.filter((r) => r.user_id === 'u-m3').length)) === 5);
+  await page.click('#notifications-view-all');
+  await page.click('#notifications-tab-dismissed');
+  const dismissed = await page.locator(`#dismissed-alert-${ids.m3}`).innerText();
+  record('«المستبعدة» lists the dismissed member with batch, category and current status', dismissed.includes('خديجة علي') && dismissed.includes('الدفعة أ') && dismissed.includes('المراجعة الذاتية') && dismissed.includes('التأخر الشديد ما زال قائمًا'), dismissed);
+  await page.mouse.click(5, 5);
+  // Per admin: the master admin (following batch أ) still sees m3.
+  await page.evaluate(() => { window.__e2e.world.userId = 'u-master'; window.__e2e.save(); });
+  await page.reload();
+  await page.waitForSelector('#notifications-button');
+  await page.waitForTimeout(600);
+  await openPanel(page);
+  record('dismissal is private: another admin still sees the member', (await page.locator(`#admin-alert-${ids.m3}`).count()) === 1);
+  await closePanel(page);
+  await page.evaluate(() => { window.__e2e.world.userId = 'u-admin-a'; window.__e2e.save(); });
+  await page.reload();
+  await page.waitForSelector('#notifications-button');
+  await page.waitForTimeout(600);
+  await openPanel(page);
+  await page.click('#notifications-view-all');
+  await page.click('#notifications-tab-dismissed');
+  await page.click(`#restore-alert-${ids.m3}`);
+  await page.waitForTimeout(400);
+  await page.click('#notifications-tab-current');
+  record('restore: the member card returns (debt still serious)', (await page.locator(`#notifications-current #admin-alert-${ids.m3}`).count()) === 1 && (await page.locator('#notifications-tab-dismissed').innerText()).includes('(0)'));
+  await page.mouse.click(5, 5);
   await context.close();
 
   // ================================================================== MASTER ADMIN: followed batches
@@ -315,13 +423,13 @@ try {
   await page.waitForTimeout(300);
   await page.locator('#notifications-panel button[title="رجوع"]').click();
   await page.waitForTimeout(500);
-  record('master admin: alerts from both followed batches', (await page.locator(`#admin-alert-${ids.m1}-tasmia`).count()) === 1 && (await page.locator(`#admin-alert-${ids.mB}-tasmia`).count()) === 1);
+  record('master admin: alerts from both followed batches', (await page.locator(`#admin-alert-${ids.m1}`).count()) === 1 && (await page.locator(`#admin-alert-${ids.mB}`).count()) === 1);
   await page.click('#notification-settings-btn');
   await page.click(`#follow-batch-${ids.batchB}`);
   await page.waitForTimeout(300);
   await page.locator('#notifications-panel button[title="رجوع"]').click();
   await page.waitForTimeout(500);
-  record('master admin: unfollowed batch hidden (ب OFF)', (await page.locator(`#admin-alert-${ids.mB}-tasmia`).count()) === 0 && (await page.locator(`#admin-alert-${ids.m1}-tasmia`).count()) === 1);
+  record('master admin: unfollowed batch hidden (ب OFF)', (await page.locator(`#admin-alert-${ids.mB}`).count()) === 0 && (await page.locator(`#admin-alert-${ids.m1}`).count()) === 1);
   await page.reload();
   await page.waitForSelector('#notifications-button');
   await page.waitForTimeout(600);
@@ -384,7 +492,8 @@ try {
   await page.click('#distant-to-option-5');
   await page.click('#add-distant-review-btn');
   await page.waitForTimeout(400);
-  record('rest-day conflict refused (same date cannot be both)', (await page.locator('#distant-review-error').innerText()).includes('يوم استدراك وراحة'));
+  await page.waitForTimeout(400);
+  record('a distant review can be scheduled on a rest-day date (it stays required)', (await page.locator('#distant-review-item-2026-11-03').count()) === 1 && (await page.locator('#distant-review-item-2026-11-03').innerText()).includes('تبقى مطلوبة رغم الإيقاف/الراحة'));
   await context.close();
 
   // Members cannot manage distant reviews.

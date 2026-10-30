@@ -379,11 +379,12 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
 
   // Tomorrow = the next program date (starts at 05:00 Cairo): its scheduled rest day or distant review.
   const tomorrowDate = addDays(cycleInfo.today_date, 1);
-  const tomorrowApplies =
-    !!settings && tomorrowDate >= cycleInfo.start_date && !isPausedDate(settings, tomorrowDate) && !(joinedOnDate && tomorrowDate < joinedOnDate);
-  const tomorrowRest = tomorrowApplies ? restDays.find((r) => r.date === tomorrowDate) : undefined;
+  const tomorrowInCycle = !!settings && tomorrowDate >= cycleInfo.start_date && !(joinedOnDate && tomorrowDate < joinedOnDate);
+  // A scheduled distant review takes priority and is not cancelled by a pause or a rest day.
   const tomorrowDistant =
-    tomorrowApplies && !tomorrowRest && currentUser.is_active ? cycleDistantReviews.find((a) => a.review_date === tomorrowDate) : undefined;
+    tomorrowInCycle && currentUser.is_active ? cycleDistantReviews.find((a) => a.review_date === tomorrowDate) : undefined;
+  const tomorrowRest =
+    tomorrowInCycle && !tomorrowDistant && !isPausedDate(settings, tomorrowDate) ? restDays.find((r) => r.date === tomorrowDate) : undefined;
 
   // Header notifications: read from the statuses above (the same numbers this dashboard shows).
   const notifications = useMemo(
@@ -910,10 +911,10 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
               >
                 <CheckCircle2 className="w-4 h-4 text-stone-500 shrink-0" />
                 <span>
-                  {cycleInfo.is_paused
-                    ? 'البرنامج متوقف مؤقتًا'
-                    : cycleInfo.is_distant_review_day
+                  {cycleInfo.is_distant_review_day
                     ? 'اليوم يوم مراجعة بعيدة'
+                    : cycleInfo.is_paused
+                    ? 'البرنامج متوقف مؤقتًا'
                     : 'اليوم يوم راحة'}{' '}
                   — لا توجد مراجعة يومية جديدة، وأنتِ مواكِبة لورد آخر يوم نشط
                 </span>

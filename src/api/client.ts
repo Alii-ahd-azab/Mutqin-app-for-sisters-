@@ -55,6 +55,15 @@ export type NotificationSnapshot = {
   body: string;
 };
 
+// An admin's dismissed member alert (admin_alert_dismissals; private to that admin).
+export type AlertDismissal = {
+  batchId: string;
+  memberId: string;
+  memberName: string;
+  summary: string;
+  dismissedAt: string;
+};
+
 // The program date: changes at 05:00 Africa/Cairo, whatever the device's time zone.
 const today = () => programDate();
 
@@ -2644,6 +2653,66 @@ export const api = {
 
     if (error) {
       throw new Error(error.message || 'تعذر حفظ إعدادات التنبيهات');
+    }
+  },
+
+
+  /* Admin: her own dismissed member alerts (RLS: own rows only). */
+  async getAlertDismissals(): Promise<AlertDismissal[]> {
+    const { data, error } = await supabase
+      .from('admin_alert_dismissals')
+      .select('batch_id, member_user_id, member_name, summary, dismissed_at');
+
+    if (error) {
+      throw new Error(error.message || 'تعذر تحميل التنبيهات المستبعدة');
+    }
+
+    return (data || []).map((r) => ({
+      batchId: r.batch_id,
+      memberId: r.member_user_id,
+      memberName: r.member_name,
+      summary: r.summary,
+      dismissedAt: r.dismissed_at,
+    }));
+  },
+
+
+  /* Admin: hide one member's alert for herself only (the debt and everything else are unchanged). */
+  async dismissAlert(
+    batchId: string,
+    memberId: string,
+    memberName: string,
+    summary: string
+  ): Promise<string> {
+    const { data, error } = await supabase.rpc(
+      'admin_alert_dismiss',
+      {
+        p_batch_id: batchId,
+        p_member_id: memberId,
+        p_member_name: memberName,
+        p_summary: summary,
+      }
+    );
+
+    if (error) {
+      throw new Error(error.message || 'تعذر إخفاء التنبيه');
+    }
+
+    return data as string;
+  },
+
+
+  async restoreAlert(
+    batchId: string,
+    memberId: string
+  ): Promise<void> {
+    const { error } = await supabase.rpc(
+      'admin_alert_restore',
+      { p_batch_id: batchId, p_member_id: memberId }
+    );
+
+    if (error) {
+      throw new Error(error.message || 'تعذر استعادة التنبيه');
     }
   },
 

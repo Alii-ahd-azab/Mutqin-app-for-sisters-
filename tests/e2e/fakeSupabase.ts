@@ -67,6 +67,8 @@ function visible(name: string, r: Row): boolean {
       return r.user_id === me;
     case 'admin_notification_batch_subscriptions':
       return r.admin_user_id === me && isMaster();
+    case 'admin_alert_dismissals':
+      return r.admin_user_id === me;
     default:
       return true;
   }
@@ -145,11 +147,6 @@ class Query implements PromiseLike<any> {
     const rows = table(this.name);
     if (this.mode === 'insert') {
       const list: Row[] = (Array.isArray(this.payload) ? this.payload : [this.payload]).map((r: Row) => ({ id: newId(), created_at: new Date().toISOString(), ...r }));
-      if (this.name === 'group_rest_days') {
-        for (const r of list)
-          if (table('distant_review_assignments').some((d) => d.cycle_id === r.cycle_id && d.review_date === r.rest_date))
-            return err('هذا التاريخ مجدول كيوم مراجعة بعيدة. احذفي المراجعة البعيدة أولًا إن أردتِه يوم استدراك وراحة.', '23514');
-      }
       if (this.name === 'tasmia_submissions') for (const r of list) r.submitted_at ||= new Date().toISOString();
       if (this.name === 'review_confirmations') for (const r of list) r.confirmed_at ||= new Date().toISOString();
       rows.push(...list);
@@ -216,6 +213,24 @@ const rpcs: Record<string, (args: any) => any> = {
     save();
     return { data: p_enabled, error: null };
   },
+  admin_alert_dismiss: ({ p_batch_id, p_member_id, p_member_name, p_summary }) => {
+    if (profile(uid())?.role !== 'admin') return err('هذا الإجراء متاح للمشرفات فقط', '42501');
+    if (!managedBatchIds().has(p_batch_id)) return err('لا تملكين صلاحية على هذه الدفعة', '42501');
+    const now = new Date().toISOString();
+    const rows = table('admin_alert_dismissals');
+    const d = rows.find((x) => x.admin_user_id === uid() && x.batch_id === p_batch_id && x.member_user_id === p_member_id);
+    if (d) Object.assign(d, { member_name: p_member_name, summary: p_summary });
+    else rows.push({ admin_user_id: uid(), batch_id: p_batch_id, member_user_id: p_member_id, member_name: p_member_name, summary: p_summary, dismissed_at: now });
+    save();
+    return { data: d?.dismissed_at ?? now, error: null };
+  },
+  admin_alert_restore: ({ p_batch_id, p_member_id }) => {
+    const before = table('admin_alert_dismissals').length;
+    world.tables.admin_alert_dismissals = table('admin_alert_dismissals').filter((x) => !(x.admin_user_id === uid() && x.batch_id === p_batch_id && x.member_user_id === p_member_id));
+    world.tables.notification_states = table('notification_states').filter((x) => !(x.user_id === uid() && x.notification_key.startsWith(`alert:${p_batch_id}:${p_member_id}:`)));
+    save();
+    return { data: table('admin_alert_dismissals').length < before, error: null };
+  },
   complete_distant_review: ({ p_assignment_id }) => {
     const a = table('distant_review_assignments').find((x) => x.id === p_assignment_id);
     if (!a) return err('يوم المراجعة البعيدة غير موجود', 'P0002');
@@ -238,8 +253,6 @@ function adminActions(body: any) {
     if (!batches.has(batchId)) return { data: { error: 'لا تملكين صلاحية إدارة هذه الدفعة' }, error: null };
     if (body.review_date <= today) return { data: { error: 'يجب أن يكون تاريخ المراجعة البعيدة في المستقبل (بعد اليوم).' }, error: null };
     const cycle = table('cycles').find((c) => c.batch_id === batchId && c.status === 'active');
-    if (table('group_rest_days').some((r) => r.cycle_id === cycle.id && r.rest_date === body.review_date))
-      return { data: { error: 'هذا التاريخ مسجل كيوم استدراك وراحة. اختاري إما يوم راحة أو يوم مراجعة بعيدة، وليس الاثنين معًا.' }, error: null };
     const row = existing ?? { id: newId(), batch_id: batchId, cycle_id: cycle.id, created_at: new Date().toISOString(), created_by_name_snapshot: profile(uid())?.full_name };
     Object.assign(row, { review_date: body.review_date, start_quarter: body.start_quarter, end_quarter: body.end_quarter, note: body.note || null, updated_at: new Date().toISOString() });
     if (!existing) table('distant_review_assignments').push(row);

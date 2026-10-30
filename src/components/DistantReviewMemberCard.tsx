@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BookMarked, CheckCircle2, Clock, ChevronLeft, ChevronRight, UserX } from 'lucide-react';
 import { DistantReviewAssignment } from '../types';
 import { formatArabicDateWithDayName, MemberDistantReviewStatus } from '../lib/calculations';
-import { DistantRangePreview } from './DistantReviewAdminSection';
+import { DistantRangePreview, distantRangeText } from './DistantReviewAdminSection';
 
 interface Props {
   status: MemberDistantReviewStatus;
@@ -23,6 +23,8 @@ export const DistantReviewMemberCard: React.FC<Props> = ({ status, today, isActi
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  // The assignment awaiting the member's confirmation (nothing is sent before «نعم، تأكيد الإتمام»).
+  const [confirming, setConfirming] = useState<DistantReviewAssignment | null>(null);
 
   const items: DistantReviewAssignment[] =
     status.outstanding.length > 0 ? status.outstanding : status.todayAssignment ? [status.todayAssignment] : [];
@@ -43,16 +45,19 @@ export const DistantReviewMemberCard: React.FC<Props> = ({ status, today, isActi
   const dateLabel = formatArabicDateWithDayName(item.review_date);
 
   const confirm = async () => {
+    const target = confirming;
+    if (!target || busy) return; // one request per confirmation, never a double submission
     setBusy(true);
     setError('');
     setMessage('');
     try {
-      setMessage(await onComplete(item.id));
+      setMessage(await onComplete(target.id));
       setIndex(0);
     } catch (e: any) {
       setError(e?.message || 'تعذر حفظ إتمام المراجعة البعيدة');
     } finally {
       setBusy(false);
+      setConfirming(null);
     }
   };
 
@@ -162,7 +167,10 @@ export const DistantReviewMemberCard: React.FC<Props> = ({ status, today, isActi
       ) : (
         <button
           id="complete-distant-review-btn"
-          onClick={confirm}
+          onClick={() => {
+            setError('');
+            setConfirming(item);
+          }}
           disabled={busy}
           className={`w-full py-3.5 px-4 rounded-2xl font-bold text-sm shadow-xs transition flex items-center justify-center gap-2 text-white cursor-pointer disabled:opacity-60 ${
             isOverdue ? 'bg-amber-700 hover:bg-amber-800' : 'bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-700 hover:to-rose-600'
@@ -174,6 +182,45 @@ export const DistantReviewMemberCard: React.FC<Props> = ({ status, today, isActi
       )}
       {message && <p className="text-xs text-emerald-700 font-bold text-center">{message}</p>}
       {error && <p className="text-xs text-rose-600 font-bold text-center">{error}</p>}
+
+      {confirming && (
+        <div className="fixed inset-0 z-50 bg-stone-900/40 flex items-center justify-center p-4" onMouseDown={(ev) => ev.target === ev.currentTarget && !busy && setConfirming(null)}>
+          <div id="distant-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="distant-confirm-title" className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-pink-100 p-5 space-y-4">
+            <h3 id="distant-confirm-title" className="font-bold text-stone-900 text-base">
+              هل أنتِ متأكدة من إتمام المراجعة البعيدة المطلوبة؟
+            </h3>
+            <div className="text-xs text-stone-700 bg-pink-50/60 border border-pink-100 rounded-xl p-3 space-y-1">
+              <p>
+                الموعد: <strong>{formatArabicDateWithDayName(confirming.review_date)}</strong>
+                {confirming.review_date < today && <span className="text-amber-800"> (متأخرة)</span>}
+              </p>
+              <p>
+                المطلوب: <strong>{distantRangeText(confirming.start_quarter, confirming.end_quarter)}</strong>
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                id="distant-confirm-yes"
+                type="button"
+                onClick={confirm}
+                disabled={busy}
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-700 hover:to-rose-600 disabled:opacity-60 cursor-pointer disabled:cursor-wait"
+              >
+                {busy ? 'جاري الحفظ...' : 'نعم، تأكيد الإتمام'}
+              </button>
+              <button
+                id="distant-confirm-cancel"
+                type="button"
+                onClick={() => setConfirming(null)}
+                disabled={busy}
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-stone-700 bg-white border border-stone-200 hover:bg-stone-50 disabled:opacity-60 cursor-pointer"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
