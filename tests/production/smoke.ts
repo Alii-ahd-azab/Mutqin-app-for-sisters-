@@ -100,7 +100,7 @@ async function seed() {
   ]), 'tasmia');
   const reviews = (k: string, cycle: string, days: number) =>
     Array.from({ length: days }, (_, i) => ({ cycle_id: cycle, user_id: acc[k].id, program_day: i + 1, start_quarter: Math.max(1, i - 6), end_quarter: i + 1 }));
-  must(await service.from('review_confirmations').insert([...reviews('m1', batches.S1.cycle, 9), ...reviews('m2', batches.S1.cycle, 9), ...reviews('mB', batches.S2.cycle, 10), ...reviews('mB2', batches.S2.cycle, 10)]), 'reviews');
+  must(await service.from('review_confirmations').insert([...reviews('m1', batches.S1.cycle, 6), ...reviews('m2', batches.S1.cycle, 9), ...reviews('mB', batches.S2.cycle, 10), ...reviews('mB2', batches.S2.cycle, 10)]), 'reviews');
   return pastDistant.id as string;
 }
 
@@ -112,7 +112,7 @@ async function alertsFor(c: SupabaseClient, scope: { id: string; name: string }[
     if (!cycle) continue;
     const program = await loadBatchProgram(c, cycle as any);
     const { members, delayById } = computeBatchDelays(program, TODAY);
-    for (const a of buildBatchAdminAlerts(b, members, delayById)) out.push(`${b.id === batches.S1.id ? 'S1' : b.id === batches.S2.id ? 'S2' : 'real'}:${a.memberName.split(' ')[1]}:${a.category}:${a.count}`);
+    for (const a of buildBatchAdminAlerts(b, members, delayById)) out.push(`${b.id === batches.S1.id ? 'S1' : b.id === batches.S2.id ? 'S2' : 'real'}:${a.memberName.split(' ')[1]}:${a.issues.map((i) => i.category + ':' + i.count).join('+')}`);
   }
   return out.sort();
 }
@@ -152,7 +152,7 @@ async function api() {
     const r = await master.rpc('set_notification_batch_follow', { p_batch_id: batches[b].id, p_enabled: on });
     record(`set_notification_batch_follow(${b}, ${on}) callable by the master admin`, !r.error && r.data === on, r.error?.message);
   }
-  record('followed S1 / unfollowed S2: only S1\'s 3+ member alert', JSON.stringify(await masterAlerts(master)) === JSON.stringify(['S1:m1:tasmia:3']), JSON.stringify(await masterAlerts(master)));
+  record('followed S1 / unfollowed S2: only S1\'s 3+ member alert', JSON.stringify(await masterAlerts(master)) === JSON.stringify(['S1:m1:tasmia:3+revision:3']), JSON.stringify(await masterAlerts(master)));
   const master2 = await signIn(acc.master);
   const persisted = (must(await master2.from('admin_notification_batch_subscriptions').select('batch_id, enabled'), 'read follows') as any[]).map((r) => `${r.batch_id === batches.S1.id ? 'S1' : 'S2'}:${r.enabled}`).sort();
   record('follow preferences persist in a new session (logout/login)', JSON.stringify(persisted) === JSON.stringify(['S1:true', 'S2:false']), JSON.stringify(persisted));
@@ -166,7 +166,20 @@ async function api() {
   record('another account does not see the master\'s follows', ((await adminA.from('admin_notification_batch_subscriptions').select('*')).data || []).length === 0);
 
   // ---------------------------------------------------------------- batch admin scope
-  record('batch admin: alerts of her batch only (S1: m1 Tasmi\'a 3; m2 with 1 day gives none)', JSON.stringify(await alertsFor(adminA, Object.values(batches))) === JSON.stringify(['S1:m1:tasmia:3']), JSON.stringify(await alertsFor(adminA, Object.values(batches))));
+  record('batch admin: ONE grouped card for m1 (Tasmi\'a 3 + review 3); m2 with 1 day gives none', JSON.stringify(await alertsFor(adminA, Object.values(batches))) === JSON.stringify(['S1:m1:tasmia:3+revision:3']), JSON.stringify(await alertsFor(adminA, Object.values(batches))));
+
+  // ---------------------------------------------------------------- per-admin dismissal
+  const dis = await adminA.rpc('admin_alert_dismiss', { p_batch_id: batches.S1.id, p_member_id: acc.m1.id, p_member_name: 'SMOKE m1', p_summary: 'SMOKE' });
+  record('admin_alert_dismiss callable by the batch admin (own batch)', !dis.error, dis.error?.message);
+  record('dismissal is stored for that admin only', ((await adminA.from('admin_alert_dismissals').select('member_user_id')).data || []).length === 1 && ((await master.from('admin_alert_dismissals').select('*')).data || []).length === 0);
+  record('dismissal changes no member data (Tasmi\'a rows unchanged)', ((await adminA.from('tasmia_submissions').select('id').eq('user_id', acc.m1.id)).data || []).length === 6);
+  record('batch admin cannot dismiss in another batch', !!(await adminA.rpc('admin_alert_dismiss', { p_batch_id: batches.S2.id, p_member_id: acc.mB.id, p_member_name: '', p_summary: '' })).error);
+  record('member cannot dismiss admin alerts', !!(await m2.rpc('admin_alert_dismiss', { p_batch_id: batches.S1.id, p_member_id: acc.m1.id, p_member_name: '', p_summary: '' })).error);
+  const adminA2 = await signIn(acc.adminA);
+  record('dismissal persists in a new session', ((await adminA2.from('admin_alert_dismissals').select('*')).data || []).length === 1);
+  const res = await adminA.rpc('admin_alert_restore', { p_batch_id: batches.S1.id, p_member_id: acc.m1.id });
+  record('restore removes the dismissal', res.data === true && ((await adminA.from('admin_alert_dismissals').select('*')).data || []).length === 0);
+  record('anon denied: admin_alert_dismissals', !!(await anon.from('admin_alert_dismissals').select('*')).error && !!(await anon.rpc('admin_alert_restore', { p_batch_id: batches.S1.id, p_member_id: acc.m1.id })).error);
   record('batch admin cannot read the other batch\'s members', ((await adminA.from('batch_memberships').select('user_id').eq('batch_id', batches.S2.id)).data || []).length === 0);
 
   // ---------------------------------------------------------------- notification state
@@ -195,7 +208,7 @@ async function api() {
   const edited = await invoke(adminA, { action: 'distant-review-update', assignment_id: created.assignment?.id, review_date: future, start_quarter: 2, end_quarter: 12, note: 'SMOKE edit' });
   record('future edit', edited.status === 200, JSON.stringify(edited).slice(0, 120));
   const restClash = await adminA.from('group_rest_days').insert({ cycle_id: batches.S1.cycle, rest_date: future, created_by: acc.adminA.id });
-  record('rest day on a distant-review date refused by the database', !!restClash.error && /مراجعة بعيدة/.test(restClash.error.message), restClash.error?.message);
+  record('a rest day may share the date of a distant review (it stays required)', !restClash.error, restClash.error?.message);
   const deleted = await invoke(adminA, { action: 'distant-review-delete', assignment_id: created.assignment?.id });
   record('future delete', deleted.status === 200, JSON.stringify(deleted).slice(0, 120));
   const pastDel = await invoke(adminA, { action: 'distant-review-delete', assignment_id: pastDistantId });
@@ -225,6 +238,28 @@ async function api() {
   const { error: ptErr } = await adminA.functions.invoke('peer-tests', { body: { action: 'admin-impact', test_id: '00000000-0000-4000-8000-000000000000' } });
   const ptBody = ptErr ? await (ptErr as any).context?.json?.().catch(() => null) : null;
   record('peer-tests (new version) responds with its own validation', !!ptBody?.error && (ptErr as any).context?.status === 404, JSON.stringify(ptBody));
+
+  // ---------------------------------------------------------------- distant review over pauses / rest days (S2 only)
+  const s2Start = { id: batches.S2.cycle, batch_id: batches.S2.id, cycle_number: 1, starts_on: START };
+  const qBefore = computeBatchDelays(await loadBatchProgram(service, s2Start), TODAY).cycleInfo.quarter_of_day;
+  must(await service.from('program_pauses').insert({ cycle_id: batches.S2.cycle, paused_on: addDays(TODAY, -6), resumed_on: addDays(TODAY, -5) }), 'closed pause');
+  must(await service.from('group_rest_days').insert({ cycle_id: batches.S2.cycle, rest_date: addDays(TODAY, -3) }), 'rest');
+  const ins = async (date: string) => (must(await service.from('distant_review_assignments').insert({ batch_id: batches.S2.id, cycle_id: batches.S2.cycle, review_date: date, start_quarter: 3, end_quarter: 7 }).select('id').single(), 'distant') as any).id as string;
+  const onPaused = await ins(addDays(TODAY, -6));
+  const onRest = await ins(addDays(TODAY, -3));
+  const progAfter = computeBatchDelays(await loadBatchProgram(service, s2Start), TODAY);
+  record('calendar: a paused date and a rest date that carry a distant review are each counted once (2 days, not 4)', progAfter.cycleInfo.quarter_of_day === qBefore - 2, `${qBefore} → ${progAfter.cycleInfo.quarter_of_day}`);
+  const cP = await mB.rpc('complete_distant_review', { p_assignment_id: onPaused });
+  record('distant review on a paused date: owed and completable', !cP.error && cP.data?.already_recorded === false, cP.error?.message);
+  const cR = await mB.rpc('complete_distant_review', { p_assignment_id: onRest });
+  record('distant review on a rest day: owed and completable', !cR.error && cR.data?.already_recorded === false, cR.error?.message);
+  must(await service.from('program_pauses').insert({ cycle_id: batches.S2.cycle, paused_on: addDays(TODAY, -1) }), 'open pause');
+  const onToday = await ins(TODAY);
+  const prog2 = computeBatchDelays(await loadBatchProgram(service, s2Start), TODAY);
+  record('open pause: today is the distant-review day; no new normal program day', prog2.cycleInfo.is_distant_review_day && prog2.cycleInfo.is_paused && !prog2.activeDates.includes(TODAY));
+  const cT = await mB.rpc('complete_distant_review', { p_assignment_id: onToday });
+  const cT2 = await mB.rpc('complete_distant_review', { p_assignment_id: onToday });
+  record("open pause: today's distant review completable, once", !cT.error && cT2.data?.already_recorded === true, cT.error?.message);
 
   // Reset the master follows for the browser phase (S1 ON, S2 OFF is set there through the UI).
   await master.rpc('set_notification_batch_follow', { p_batch_id: batches.S1.id, p_enabled: false });
@@ -268,7 +303,8 @@ async function browserPhase() {
     record('UI: toggle S2 ON then OFF', (await page.locator(`#follow-batch-${batches.S2.id}`).getAttribute('aria-checked')) === 'false');
     await page.locator('#notifications-panel button[title="رجوع"]').click();
     await page.waitForTimeout(2500);
-    record('UI: master admin alert from followed S1 only', (await page.locator(`#admin-alert-${acc.m1.id}-tasmia`).count()) === 1 && (await page.locator(`#admin-alert-${acc.mB.id}-tasmia`).count()) === 0);
+    record('UI: master admin alert from followed S1 only', (await page.locator(`#admin-alert-${acc.m1.id}`).count()) === 1 && (await page.locator(`#admin-alert-${acc.mB.id}`).count()) === 0);
+    record('UI: grouped card with two lines', (await page.locator(`#admin-alert-${acc.m1.id} .alert-issue`).count()) === 2);
     await page.reload();
     await page.waitForSelector('#notifications-button');
     await page.waitForTimeout(2500);
@@ -300,6 +336,24 @@ async function browserPhase() {
     await page.click(`#confirm-delete-distant-${date}`);
     await page.waitForTimeout(2500);
     record('UI: future day deleted', (await page.locator(`#distant-review-item-${date}`).count()) === 0);
+    // X / «المستبعدة» / restore on production.
+    await page.click('#notifications-button');
+    await page.click(`#dismiss-alert-${acc.m1.id}`);
+    await page.waitForTimeout(1500);
+    record('UI: X dismisses the grouped card', (await page.locator(`#admin-alert-${acc.m1.id}`).count()) === 0);
+    await page.keyboard.press('Escape');
+    await page.reload();
+    await page.waitForSelector('#notifications-button');
+    await page.waitForTimeout(2500);
+    await page.click('#notifications-button');
+    record('UI: dismissal persists after refresh', (await page.locator(`#admin-alert-${acc.m1.id}`).count()) === 0);
+    await page.click('#notifications-view-all');
+    await page.click('#notifications-tab-dismissed');
+    record('UI: «المستبعدة» lists it (still serious)', (await page.locator(`#dismissed-alert-${acc.m1.id}`).innerText()).includes('التأخر الشديد ما زال قائمًا'));
+    await page.click(`#restore-alert-${acc.m1.id}`);
+    await page.waitForTimeout(1500);
+    await page.click('#notifications-tab-current');
+    record('UI: restore brings the card back', (await page.locator(`#notifications-current #admin-alert-${acc.m1.id}`).count()) === 1);
     record('UI: batch admin — no console errors or failed Sisters requests', problems.length === 0, problems.join(' | '));
     await context.close();
 
@@ -313,7 +367,11 @@ async function browserPhase() {
     await page.reload();
     await page.waitForSelector('#notifications-button');
     await page.waitForTimeout(2500);
-    record('UI: archive persisted on the server; still red (condition remains)', (await page.locator('#notifications-badge').count()) === 0 && (await page.locator('#notifications-button').getAttribute('data-urgent')) === 'true');
+    // m1 has two serious warnings: the clicked one is read, the other still counts (badge 1).
+    record('UI: clicked 3+ warning read (badge 2 → 1) and the control still red', (await page.locator('#notifications-badge').innerText()).trim() === '1' && (await page.locator('#notifications-button').getAttribute('data-urgent')) === 'true');
+    await page.click('#notifications-button');
+    record('UI: the 3+ warning stays in the active list after click and refresh', (await page.locator('#notification-tasmia-overdue').count()) === 1);
+    await page.keyboard.press('Escape');
     await page.locator('#history-tab-distant').click();
     record('UI: member history shows the completed distant review (late)', (await page.locator(`#distant-history-${addDays(TODAY, -2)}`).innerText()).includes('تم الإنجاز (متأخرًا)'));
     record('UI: member — no console errors or failed Sisters requests', problems.length === 0, problems.join(' | '));
@@ -334,6 +392,7 @@ async function cleanup() {
     ['tasmia', () => service.from('tasmia_submissions').delete().in('cycle_id', cycles)],
     ['reviews', () => service.from('review_confirmations').delete().in('cycle_id', cycles)],
     ['rest', () => service.from('group_rest_days').delete().in('cycle_id', cycles)],
+    ['pauses', () => service.from('program_pauses').delete().in('cycle_id', cycles)],
     ['memberships', () => service.from('batch_memberships').delete().in('batch_id', bids)],
     ['cycles', () => service.from('cycles').delete().in('id', cycles)],
     ['batches', () => service.from('batches').delete().in('id', bids)],

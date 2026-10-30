@@ -138,7 +138,7 @@ test('the three migrations change no existing row (users, Tasmi\'a, reviews, cyc
       await fresh.exec(migrationSql(name));
       assert.deepEqual(await snapshot(fresh), before, `after ${name}`);
     }
-    for (const t of ['distant_review_assignments', 'distant_review_completions', 'notification_states', 'admin_notification_batch_subscriptions'])
+    for (const t of ['distant_review_assignments', 'distant_review_completions', 'notification_states', 'admin_notification_batch_subscriptions', 'admin_alert_dismissals'])
       assert.equal((await one(fresh, `select count(*)::int n from public.${t}`)).n, 0, `${t} starts empty`);
   } finally {
     await fresh.close();
@@ -231,21 +231,87 @@ test('paused dates: SQL is_paused_date equals the JS isPausedDate on every date 
 // «المراجعة البعيدة»
 // ---------------------------------------------------------------------------------------------
 
-test('distant review: one schedule type per date — rest day XOR distant review (database guards, admin RLS insert too)', { skip }, async () => {
+test('distant review: a rest day and a distant review may share a date (the distant review takes priority)', { skip }, async () => {
   await scratch(async () => {
     const date = addDays(TODAY, 6);
     await addDistant(date);
-    await fails(db, 'insert into group_rest_days(cycle_id, rest_date) values ($1, $2)', [id.cycleA, date], /مجدول كيوم مراجعة بعيدة/);
+    // A rest day can be added on a distant-review date (the admin's own insert, browser RLS).
+    await become(id.adminA);
+    await db.query('insert into group_rest_days(cycle_id, rest_date, created_by) values ($1, $2, $3)', [id.cycleA, date, id.adminA]);
+    await become(null);
+    // A distant review can be scheduled on a rest-day date.
     const restDate = addDays(TODAY, 7);
     await db.query('insert into group_rest_days(cycle_id, rest_date) values ($1, $2)', [id.cycleA, restDate]);
-    await fails(db, 'select public.distant_review_save(null, $1, $2, 1, 5, null, $3)', [id.batchA, restDate, id.adminA], /يوم استدراك وراحة/);
-    await fails(db, 'insert into distant_review_assignments(cycle_id, batch_id, review_date, start_quarter, end_quarter) values ($1,$2,$3,1,2)', [id.cycleA, id.batchA, restDate], /يوم استدراك وراحة/);
-    // The admin's own rest-day insert (browser, RLS) is refused with the same message.
-    await become(id.adminA);
-    await fails(db, 'insert into group_rest_days(cycle_id, rest_date, created_by) values ($1, $2, $3)', [id.cycleA, date, id.adminA], /مجدول كيوم مراجعة بعيدة/);
+    const saved = (await one(db, 'select public.distant_review_save(null, $1, $2, 1, 5, null, $3) r', [id.batchA, restDate, id.adminA])).r;
+    assert.equal(saved.review_date, restDate);
+    assert.equal((await one(db, "select count(*)::int n from pg_trigger where tgname='rest_day_distant_review_guard'")).n, 0, 'XOR guard lifted');
+  });
+});
+
+test('distant review during an OPEN global pause: owed and completable today', { skip }, async () => {
+  await scratch(async () => {
+    await db.query('insert into program_pauses(cycle_id, paused_on) values ($1, $2::date)', [id.cycleA, addDays(TODAY, -1)]);
+    const a = await addDistant(TODAY, 1, 4);
+    await become(id.m1);
+    assert.equal((await one(db, 'select public.complete_distant_review($1) r', [a])).r.already_recorded, false);
+    assert.equal((await one(db, 'select public.complete_distant_review($1) r', [a])).r.already_recorded, true, 'idempotent: one completion');
     await become(null);
-    // Another batch's cycle may use the same date.
-    await db.query('insert into group_rest_days(cycle_id, rest_date) values ($1, $2)', [id.cycleB, date]);
+    assert.equal(await n(db, 'select 1 from distant_review_completions where assignment_id=$1', [a]), 1);
+  });
+});
+
+test('distant review on a rest day: owed and completable', { skip }, async () => {
+  await scratch(async () => {
+    const date = addDays(TODAY, -1);
+    await db.query('insert into group_rest_days(cycle_id, rest_date) values ($1, $2)', [id.cycleA, date]);
+    const a = await addDistant(date, 2, 6);
+    await become(id.m1);
+    assert.equal((await one(db, 'select public.complete_distant_review($1) r', [a])).r.completed_on, TODAY);
+    await become(null);
+  });
+});
+
+test('admin alert dismissals: per admin, own rows only, restorable; batch scope; members and anon cannot', { skip }, async () => {
+  await scratch(async () => {
+    await become(id.master);
+    await db.query("select public.admin_alert_dismiss($1, $2, 'عضوة', 'ملخص')", [id.batchA, id.m1]);
+    await db.query("select public.admin_alert_dismiss($1, $2, 'عضوة', 'ملخص 2')", [id.batchA, id.m1]);
+    assert.equal(await n(db, 'select 1 from admin_alert_dismissals'), 1, 'one row per admin + member');
+    assert.equal((await one(db, 'select summary from admin_alert_dismissals')).summary, 'ملخص 2');
+    await fails(db, 'insert into admin_alert_dismissals(admin_user_id, batch_id, member_user_id) values ($1,$2,$3)', [id.master, id.batchA, id.m2], '42501');
+    await fails(db, "select public.admin_alert_dismiss($1, $2, '', '')", [id.batchA, id.mB], 'P0002');
+    // Another admin does not see it and cannot restore it (her own state is independent).
+    await become(id.adminA);
+    assert.equal(await n(db, 'select 1 from admin_alert_dismissals'), 0);
+    assert.equal((await one(db, 'select public.admin_alert_restore($1, $2) r', [id.batchA, id.m1])).r, false);
+    await become(id.master2);
+    assert.equal(await n(db, 'select 1 from admin_alert_dismissals'), 0, 'another master admin sees nothing');
+    await become(null);
+    assert.equal(await n(db, 'select 1 from admin_alert_dismissals where admin_user_id=$1', [id.master]), 1, 'the other admins did not touch it');
+    // Dismissal changes no member data.
+    assert.equal(await n(db, 'select 1 from tasmia_submissions where user_id=$1', [id.m1]), 5);
+    // Restore clears the dismissal and this admin's "opened" marks of that member's alert.
+    await become(id.master);
+    await db.query('select public.notification_archive($1::jsonb)', [JSON.stringify({ key: `alert:${id.batchA}:${id.m1}:t6`, kind: 'admin-member', tone: 'serious', urgent: true, title: 'x', body: 'y' })]);
+    await db.query('select public.notification_archive($1::jsonb)', [JSON.stringify({ key: 'b:other', kind: 'x', tone: 'info', urgent: false, title: 'x', body: 'y' })]);
+    assert.equal((await one(db, 'select public.admin_alert_restore($1, $2) r', [id.batchA, id.m1])).r, true);
+    assert.equal(await n(db, 'select 1 from admin_alert_dismissals'), 0);
+    assert.equal(await n(db, "select 1 from notification_states where notification_key like 'alert:%'"), 0);
+    assert.equal(await n(db, "select 1 from notification_states where notification_key = 'b:other'"), 1, 'other states untouched');
+    // A batch admin may dismiss only in her batches; members never.
+    await become(id.adminA);
+    await db.query("select public.admin_alert_dismiss($1, $2, '', '')", [id.batchA, id.m2]);
+    await fails(db, "select public.admin_alert_dismiss($1, $2, '', '')", [id.batchB, id.mB], '42501');
+    await become(id.m1);
+    await fails(db, "select public.admin_alert_dismiss($1, $2, '', '')", [id.batchA, id.m2], '42501');
+    assert.equal(await n(db, 'select 1 from admin_alert_dismissals'), 0);
+    await become(id.inactive);
+    await fails(db, "select public.admin_alert_restore($1, $2)", [id.batchA, id.m2], '42501');
+    await become(null);
+  });
+  await as(null, async (tx) => {
+    await fails(tx, 'select 1 from admin_alert_dismissals', [], '42501');
+    await fails(tx, "select public.admin_alert_dismiss($1, $2, '', '')", [id.batchA, id.m1], '42501');
   });
 });
 
@@ -320,7 +386,7 @@ test('distant review RLS: members read their batch days and only their own compl
   });
 });
 
-test('distant review completion: today or late, idempotent (assignment + member), never future/paused/rest/before joining/other batch/inactive', { skip }, async () => {
+test('distant review completion: today or late, idempotent (assignment + member), also on a paused date; never future/before joining/other batch/inactive', { skip }, async () => {
   await scratch(async () => {
     const today = await addDistant(TODAY, 1, 12);
     const missed = await addDistant(addDays(TODAY, -3), 13, 24);
@@ -333,9 +399,10 @@ test('distant review completion: today or late, idempotent (assignment + member)
     const late = (await one(db, 'select public.complete_distant_review($1) r', [missed])).r;
     assert.equal(late.completed_on, TODAY, 'completed late: the program date of the confirmation');
     await fails(db, 'select public.complete_distant_review($1)', [future], /لم يحن موعد/);
-    await fails(db, 'select public.complete_distant_review($1)', [pausedDay], /غير مطلوبة منكِ/);
+    // A pause does not cancel a distant review: still owed and completable.
+    assert.equal((await one(db, 'select public.complete_distant_review($1) r', [pausedDay])).r.already_recorded, false);
     await fails(db, 'select public.complete_distant_review($1)', [uuid(999)], 'P0002');
-    assert.equal(await n(db, 'select 1 from distant_review_completions where user_id=$1', [id.m1]), 2, 'one row per assignment');
+    assert.equal(await n(db, 'select 1 from distant_review_completions where user_id=$1', [id.m1]), 3, 'one row per assignment');
     // Joined after the date: not owed.
     await become(id.late);
     await fails(db, 'select public.complete_distant_review($1)', [missed], /غير مطلوبة منكِ/);

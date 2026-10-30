@@ -109,9 +109,6 @@ export const DistantReviewAdminSection: React.FC<Props> = ({
     if (date < minDate) return setError('يجب أن يكون تاريخ المراجعة البعيدة في المستقبل (بعد اليوم).');
     if (from === null || to === null) return setError('يرجى اختيار «من الربع» و«إلى الربع»');
     if (!rangeValid) return setError('نطاق الأرباع غير صالح: «إلى الربع» هو موضع التوقف (بداية ذلك الربع)، فيجب أن يكون بعد «من الربع» وضمن 1–240.');
-    if (restDays.some((r) => r.date === date)) {
-      return setError('هذا التاريخ مسجل كيوم استدراك وراحة. اختاري إما يوم راحة أو يوم مراجعة بعيدة، وليس الاثنين معًا.');
-    }
     if (assignments.some((a) => a.cycle_id === cycleId && a.review_date === date && a.id !== editingId)) {
       return setError('يوجد يوم مراجعة بعيدة مجدول في هذا التاريخ بالفعل.');
     }
@@ -268,7 +265,8 @@ export const DistantReviewAdminSection: React.FC<Props> = ({
           ordered.map((a) => {
             const isFuture = a.review_date > today;
             const isToday = a.review_date === today;
-            const paused = isPausedDate(settings, a.review_date);
+            // A pause or a rest day on that date does not cancel the distant review (it still applies).
+            const offDay = isPausedDate(settings, a.review_date) || restDays.some((r) => r.date === a.review_date);
             const stats = isFuture ? null : statsOf(a);
             return (
               <div key={a.id} id={`distant-review-item-${a.review_date}`} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
@@ -278,17 +276,20 @@ export const DistantReviewAdminSection: React.FC<Props> = ({
                     <span className="font-bold text-stone-900">{formatArabicDateWithDayName(a.review_date)}</span>
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                        paused
-                          ? 'bg-orange-50 text-orange-800 border-orange-200'
-                          : isFuture
+                        isFuture
                           ? 'bg-pink-50 text-pink-800 border-pink-200'
                           : isToday
                           ? 'bg-amber-100 text-amber-900 border-amber-300'
                           : 'bg-stone-100 text-stone-600 border-stone-200'
                       }`}
                     >
-                      {paused ? 'معلّق (البرنامج متوقف)' : isFuture ? 'قادم' : isToday ? 'اليوم' : 'مضى'}
+                      {isFuture ? 'قادم' : isToday ? 'اليوم' : 'مضى'}
                     </span>
+                    {offDay && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-fuchsia-50 text-fuchsia-800 border-fuchsia-200">
+                        تبقى مطلوبة رغم الإيقاف/الراحة
+                      </span>
+                    )}
                   </div>
                   <p className="text-stone-700">
                     <strong>{distantRangeText(a.start_quarter, a.end_quarter)}</strong>
@@ -298,7 +299,7 @@ export const DistantReviewAdminSection: React.FC<Props> = ({
                     </span>
                   </p>
                   {a.note && <p className="text-stone-500">ملاحظة: {a.note}</p>}
-                  {stats && !paused && (
+                  {stats && (
                     <p className="text-emerald-800 font-bold flex items-center gap-1" id={`distant-review-stats-${a.review_date}`}>
                       <Users className="w-3.5 h-3.5" />
                       <span>

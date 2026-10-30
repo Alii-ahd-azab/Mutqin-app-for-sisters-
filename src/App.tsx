@@ -18,8 +18,10 @@ import {
   type MemberNotification,
   type MemberNotificationTarget,
   type NotificationState,
+  adminAlertText,
+  dismissalKey,
 } from './lib/notifications';
-import type { NotificationSnapshot } from './api/client';
+import type { AlertDismissal, NotificationSnapshot } from './api/client';
 import { api } from './api/client';
 import {
   AdminAccountUpdate,
@@ -93,6 +95,8 @@ const MainApp: React.FC = () => {
   const [notificationStates, setNotificationStates] = useState<Map<string, NotificationState>>(new Map());
   // Master admin: the batches whose serious alerts she follows (admin_notification_batch_subscriptions).
   const [followedBatchIds, setFollowedBatchIds] = useState<Set<string>>(new Set());
+  // Admins: member alerts this admin dismissed (X), keyed by dismissalKey(batch, member).
+  const [alertDismissals, setAlertDismissals] = useState<Map<string, AlertDismissal>>(new Map());
   const [adminFocus, setAdminFocus] = useState<{ memberId: string; action: 'manage' | 'exclude'; nonce: number } | null>(null);
 
   /*
@@ -265,8 +269,14 @@ const MainApp: React.FC = () => {
   useEffect(() => {
     setNotificationStates(new Map());
     setFollowedBatchIds(new Set());
+    setAlertDismissals(new Map());
     if (!currentUserId) return;
     let cancelled = false;
+    if (isAdminUser)
+      api.getAlertDismissals().then(
+        (rows) => !cancelled && setAlertDismissals(new Map(rows.map((r) => [dismissalKey(r.batchId, r.memberId), r]))),
+        (err) => console.warn('alert dismissals', err?.message)
+      );
     api.getNotificationStates().then(
       (rows) => !cancelled && setNotificationStates(new Map(rows.map((r) => [r.key, r]))),
       (err) => console.warn('notification states', err?.message)
@@ -279,7 +289,7 @@ const MainApp: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [currentUserId, isMaster, programDay]);
+  }, [currentUserId, isMaster, isAdminUser, programDay]);
 
   // Seen / archived: applied locally right away, then stored (server time is the record).
   const applyLocal = (items: NotificationSnapshot[], mode: 'seen' | 'archived') =>
@@ -303,6 +313,44 @@ const MainApp: React.FC = () => {
   const handleNotificationArchived = (item: NotificationSnapshot) => {
     applyLocal([item], 'archived');
     api.archiveNotification(item).catch((err) => console.warn('archive', err?.message));
+  };
+  // X on an admin alert card: hidden for this admin only; restorable from «المستبعدة».
+  const handleDismissAlert = (alert: BatchAdminAlert) => {
+    const row: AlertDismissal = {
+      batchId: alert.batchId,
+      memberId: alert.memberId,
+      memberName: alert.memberName,
+      summary: adminAlertText(alert).body,
+      dismissedAt: new Date().toISOString(),
+    };
+    setAlertDismissals((prev) => new Map(prev).set(dismissalKey(row.batchId, row.memberId), row));
+    api.dismissAlert(row.batchId, row.memberId, row.memberName, row.summary).catch((err) => {
+      console.warn('dismiss alert', err?.message);
+      setAlertDismissals((prev) => {
+        const next = new Map(prev);
+        next.delete(dismissalKey(row.batchId, row.memberId));
+        return next;
+      });
+    });
+  };
+  const handleRestoreAlert = async (batchId: string, memberId: string) => {
+    try {
+      await api.restoreAlert(batchId, memberId);
+    } catch (err: any) {
+      console.warn('restore alert', err?.message);
+      return;
+    }
+    setAlertDismissals((prev) => {
+      const next = new Map(prev);
+      next.delete(dismissalKey(batchId, memberId));
+      return next;
+    });
+    // The restore also cleared this admin's "opened" marks for that member's alert.
+    setNotificationStates((prev) => {
+      const next = new Map<string, NotificationState>(prev);
+      for (const k of [...next.keys()]) if (k.startsWith(`alert:${batchId}:${memberId}:`)) next.delete(k);
+      return next;
+    });
   };
   const handleToggleFollow = async (batchId: string, enabled: boolean) => {
     await api.setNotificationFollow(batchId, enabled);
@@ -495,6 +543,9 @@ const MainApp: React.FC = () => {
               onSeen={handleNotificationsSeen}
               onArchive={handleNotificationArchived}
               follow={isMaster ? { batches: accessibleBatches, followed: followedBatchIds, onToggle: handleToggleFollow } : undefined}
+              dismissals={alertDismissals}
+              onDismiss={handleDismissAlert}
+              onRestore={handleRestoreAlert}
               onOpen={(alert, action) => {
                 if (alert.batchId !== selectedBatchId) handleSelectBatch(alert.batchId);
                 setAdminFocus({ memberId: alert.memberId, action, nonce: Date.now() });
