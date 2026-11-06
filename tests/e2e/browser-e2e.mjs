@@ -74,6 +74,7 @@ function world({ userId, distant = [], rest = [], tasmia = {}, reviews = {}, com
     notification_states: [],
     admin_notification_batch_subscriptions: follows.map(([admin, batch]) => ({ admin_user_id: ids[admin], batch_id: ids[batch], enabled: true })),
     admin_alert_dismissals: [],
+    voided_daily_records: [],
   };
   for (const [member, quarters] of Object.entries(tasmia)) {
     const cycle = member === 'mB' ? ids.cycleB : ids.cycleA;
@@ -494,6 +495,121 @@ try {
   await page.waitForTimeout(400);
   await page.waitForTimeout(400);
   record('a distant review can be scheduled on a rest-day date (it stays required)', (await page.locator('#distant-review-item-2026-11-03').count()) === 1 && (await page.locator('#distant-review-item-2026-11-03').innerText()).includes('تبقى مطلوبة رغم الإيقاف/الراحة'));
+  await context.close();
+
+  // ================================================================== TODAY converted into a distant-review day
+  // 28 Oct is program day 9. m1 already submitted today's quarter 9 and review; m2 did nothing today.
+  const worldTables = (name) => page.evaluate((n) => window.__e2e.world.tables[n], name);
+  ({ page, context } = await open(NOON, world({
+    userId: ids.adminA,
+    tasmia: { m1: [1, 2, 3, 4, 5, 6, 7, 8, 9], m2: [1, 2, 3, 4, 5, 6, 7, 8], m3: [1, 2, 3, 4, 5, 6, 7, 8] },
+    reviews: { m1: [1, 2, 3, 4, 5, 6, 7, 8, 9], m2: [1, 2, 3, 4, 5, 6, 7, 8], m3: [1, 2, 3, 4, 5, 6, 7, 8] },
+  })));
+  const adminText = () => page.locator('main').innerText();
+  record('before the conversion the admin sees program day 9', /اليوم رقم 9/.test(await adminText()));
+  await page.getByRole('button', { name: /الإعدادات/ }).first().click();
+  await page.waitForSelector('#distant-review-section');
+  record('same-day: the date picker allows today for a new day', (await page.locator('#distant-review-date').getAttribute('min')) === '2026-10-28');
+  await page.fill('#distant-review-date', '2026-10-28');
+  await page.click('#distant-from-button');
+  await page.click('#distant-from-option-1');
+  await page.click('#distant-to-button');
+  await page.fill('#distant-to-search', '9');
+  await page.click('#distant-to-option-9');
+  await page.click('#add-distant-review-btn');
+  await page.waitForSelector('#distant-today-dialog');
+  const todayDialog = await page.locator('#distant-today-dialog').innerText();
+  await shot(page, 'admin-today-confirm');
+  record('same-day: warning shown before anything is saved', todayDialog.includes('سيتم تحويل اليوم إلى يوم مراجعة بعيدة وإلغاء احتساب الورد اليومي العادي لهذا اليوم') && todayDialog.includes('لا يمكن تعديل هذا اليوم أو حذفه بعد الحفظ'), todayDialog);
+  record('same-day: warning counts the submissions that stop counting (quarter 9 + review)', (await page.locator('#distant-today-count').innerText()).includes('يوجد 2 من تسجيلات اليوم'));
+  const box = await page.locator('#distant-today-dialog').boundingBox();
+  record('same-day: dialog is centred in the viewport', box.x > 200 && box.x + box.width < 1080 && box.y > 100 && box.y + box.height < 800, JSON.stringify(box));
+  await page.click('#distant-today-cancel');
+  await page.waitForTimeout(200);
+  record('same-day: cancel changes nothing', (await page.locator('#distant-today-dialog').count()) === 0 && (await worldTables('distant_review_assignments')).length === 0 && (await worldTables('tasmia_submissions')).some((r) => r.quarter_number === 9));
+  await page.click('#add-distant-review-btn');
+  await page.locator('#distant-today-yes').dblclick();
+  await page.waitForSelector('#distant-review-item-2026-10-28');
+  await page.waitForTimeout(500);
+  record('same-day: one day created (double click)', (await worldTables('distant_review_assignments')).length === 1);
+  record('same-day: success message reports the voided records', (await page.locator('#distant-review-msg').innerText()).includes('أُلغي احتساب 2'));
+  const todayItem = await page.locator('#distant-review-item-2026-10-28').innerText();
+  record('same-day: the day cannot be edited or deleted afterwards', todayItem.includes('عرض فقط') && (await page.locator('#edit-distant-2026-10-28').count()) === 0 && (await page.locator('#delete-distant-2026-10-28').count()) === 0, todayItem);
+  record('same-day: the program goes back to day 8', /اليوم رقم 8/.test(await adminText()));
+  const voided = await worldTables('voided_daily_records');
+  record('same-day: the rows left the live tables and are preserved in the archive', voided.length === 2 && !(await worldTables('tasmia_submissions')).some((r) => r.quarter_number === 9) && !(await worldTables('review_confirmations')).some((r) => r.program_day === 9) && voided.every((v) => v.user_id === ids.m1));
+  // A future day still works; editing it cannot move it onto today.
+  await page.fill('#distant-review-date', '2026-11-02');
+  await page.click('#distant-from-button');
+  await page.click('#distant-from-option-1');
+  await page.click('#distant-to-button');
+  await page.fill('#distant-to-search', '5');
+  await page.click('#distant-to-option-5');
+  await page.click('#add-distant-review-btn');
+  await page.waitForSelector('#distant-review-item-2026-11-02');
+  record('same-day: a future day needs no same-day warning', (await page.locator('#distant-today-dialog').count()) === 0);
+  await page.click('#edit-distant-2026-11-02');
+  record('same-day: editing a scheduled day keeps the future-only minimum', (await page.locator('#distant-review-date').getAttribute('min')) === '2026-10-29');
+  await page.click('#delete-distant-2026-11-02');
+  await page.click('#confirm-delete-distant-2026-11-02');
+  await page.waitForTimeout(400);
+
+  // Sister A (already submitted before the conversion).
+  await page.evaluate(() => { window.__e2e.world.userId = 'u-m1'; window.__e2e.save(); });
+  await page.reload();
+  await page.waitForSelector('#notifications-button');
+  await page.waitForTimeout(500);
+  const heroA = await page.locator('#day-overview').innerText();
+  record('Sister A: program day 8, her stats no longer count quarter 9', /اليوم رقم 8/.test(heroA));
+  record('Sister A: the distant review is today\'s requirement', (await page.locator('#distant-review-card').count()) === 1 && (await page.locator('#distant-review-banner').count()) === 1);
+  record('Sister A: no normal review due today', (await page.locator('#revision-card').innerText()).includes('لا توجد مراجعة يومية جديدة'));
+  record('Sister A: no new Tasmi\'a due today (caught up to day 8)', (await page.locator('#tasmia-card').innerText()).includes('الربع رقم 8'));
+  const voidedT = await page.locator('#voided-tasmia-9').innerText();
+  await page.locator('#voided-tasmia-9').scrollIntoViewIfNeeded();
+  await shot(page, 'member-history-voided');
+  record('Sister A: her history keeps quarter 9 with the label', voidedT.includes('الربع رقم 9') && voidedT.includes('أُلغي احتسابه: تحوّل اليوم إلى مراجعة بعيدة'), voidedT);
+  record('Sister A: the recitation tab counts valid quarters only (8)', (await page.getByRole('button', { name: /سجل التسميع/ }).innerText()).includes('(8)'));
+  await page.getByRole('button', { name: /سجل المراجعات/ }).click();
+  const voidedR = await page.locator('#voided-review-9').innerText();
+  record('Sister A: her history keeps the review with the label', voidedR.includes('مراجعة من الربع') && voidedR.includes('أُلغي احتسابه: تحوّل اليوم إلى مراجعة بعيدة'), voidedR);
+  await openPanel(page);
+  record('Sister A: no fake overdue notification; the distant review is announced', (await page.locator('#notification-tasmia-overdue').count()) === 0 && (await page.locator('#notification-revision-overdue').count()) === 0 && (await page.locator('#notification-distant-day').count()) === 1);
+  await closePanel(page);
+  await page.click('#complete-distant-review-btn');
+  await page.click('#distant-confirm-yes');
+  await page.waitForTimeout(500);
+  record('Sister A: the distant review of the converted day completes normally', (await worldTables('distant_review_completions')).length === 1);
+
+  // Sister B (did nothing today): same state, nothing in her history.
+  await page.evaluate(() => { window.__e2e.world.userId = 'u-m2'; window.__e2e.save(); });
+  await page.reload();
+  await page.waitForSelector('#notifications-button');
+  await page.waitForTimeout(500);
+  record('Sister B: program day 8, no normal requirement, nothing voided', /اليوم رقم 8/.test(await page.locator('#day-overview').innerText()) && (await page.locator('.voided-record').count()) === 0 && (await page.locator('#revision-card').innerText()).includes('لا توجد مراجعة يومية جديدة'));
+  await openPanel(page);
+  record('Sister B: no fake overdue notification', (await page.locator('#notification-tasmia-overdue').count()) === 0 && (await page.locator('#notification-revision-overdue').count()) === 0);
+  await closePanel(page);
+
+  // The next program day (05:00 Cairo): Sister A and Sister B owe exactly the same things.
+  const nextDayState = async () => {
+    const tasmia = await page.locator('#tasmia-card').innerText();
+    const revision = await page.locator('#revision-card').innerText();
+    await openPanel(page);
+    const overdue = (await page.locator('#notification-tasmia-overdue').count()) + (await page.locator('#notification-revision-overdue').count());
+    await closePanel(page);
+    return { day9: /اليوم رقم 9/.test(await page.locator('#day-overview').innerText()), tasmia9: tasmia.includes('الربع رقم 9'), reviewDue: !revision.includes('لا توجد مراجعة يومية جديدة') && !revision.includes('تمت المراجعة'), overdue };
+  };
+  await page.clock.fastForward('17:01:00');
+  await page.waitForTimeout(800);
+  const b2 = await nextDayState();
+  record('next day, Sister B: exactly day 9; quarter 9 and the review are due; no debt', b2.day9 && b2.tasmia9 && b2.reviewDue && b2.overdue === 0, JSON.stringify(b2));
+  await page.evaluate(() => { window.__e2e.world.userId = 'u-m1'; window.__e2e.save(); });
+  await page.reload();
+  await page.waitForSelector('#notifications-button');
+  await page.waitForTimeout(500);
+  const a2 = await nextDayState();
+  record('next day, Sister A: identical: quarter 9 and the review are owed again', a2.day9 && a2.tasmia9 && a2.reviewDue && a2.overdue === 0, JSON.stringify(a2));
+  record('next day: the voided records stay in her history', (await page.locator('#voided-tasmia-9').count()) === 1);
   await context.close();
 
   // Members cannot manage distant reviews.

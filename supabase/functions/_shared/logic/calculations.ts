@@ -800,6 +800,29 @@ export function getActiveCycleDates(
 }
 
 
+/**
+ * The program day (1-based) of a date, or null when the date is
+ * not an active program day: rest day, «المراجعة البعيدة» day or
+ * paused date. Same source of truth as getActiveCycleDates.
+ */
+export function programDayOfDate(
+  startDateStr: string,
+  dateStr: string,
+  restDays: RestDay[] = [],
+  settings?: GroupSettings
+): number | null {
+  const index =
+    getActiveCycleDates(
+      startDateStr,
+      dateStr,
+      restDays,
+      settings
+    ).indexOf(dateStr);
+
+  return index < 0 ? null : index + 1;
+}
+
+
 export interface MemberRevisionStatus {
   /*
    * Whether today is an active program day. On rest days

@@ -5,11 +5,13 @@ import {
   DistantReviewCompletion,
   DistantReviewInput,
   GroupSettings,
+  RecitationLog,
   RestDay,
+  RevisionLog,
   User,
 } from '../types';
 import { distantReviewQuarterCount, getDistantReviewBounds, getQuarterInfo } from '../data/quranData';
-import { addDays, formatArabicDateWithDayName, isDistantReviewOwed, isPausedDate, joinedOnDateFromTimestamp } from '../lib/calculations';
+import { addDays, formatArabicDateWithDayName, isDistantReviewOwed, isPausedDate, joinedOnDateFromTimestamp, programDayOfDate } from '../lib/calculations';
 import { QuarterPicker } from './QuarterPicker';
 
 /** «من بداية الربع X حتى بداية الربع Y»: the TO quarter is the stopping boundary (not reviewed). */
@@ -53,6 +55,9 @@ interface Props {
   settings: GroupSettings;
   restDays: RestDay[];
   users: User[];
+  // Today's normal submissions, for the same-day conversion warning.
+  recitations: RecitationLog[];
+  revisions: RevisionLog[];
   assignments: DistantReviewAssignment[];
   completions: DistantReviewCompletion[];
   onCreate: (payload: DistantReviewInput) => Promise<string>;
@@ -71,6 +76,8 @@ export const DistantReviewAdminSection: React.FC<Props> = ({
   settings,
   restDays,
   users,
+  recitations,
+  revisions,
   assignments,
   completions,
   onCreate,
@@ -88,8 +95,10 @@ export const DistantReviewAdminSection: React.FC<Props> = ({
   const [busy, setBusy] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [confirmToday, setConfirmToday] = useState(false);
 
-  const minDate = addDays(today, 1);
+  // A new day may be today; a day already scheduled can only move to another future date.
+  const minDate = editingId ? addDays(today, 1) : today;
   // «إلى الربع» is where the review stops (its beginning), so it must come after «من الربع».
   const rangeValid = from !== null && to !== null && from >= 1 && to <= 240 && from < to;
 
@@ -106,12 +115,25 @@ export const DistantReviewAdminSection: React.FC<Props> = ({
     setError('');
     setMessage('');
     if (!date) return setError('يرجى تحديد تاريخ المراجعة البعيدة');
-    if (date < minDate) return setError('يجب أن يكون تاريخ المراجعة البعيدة في المستقبل (بعد اليوم).');
+    if (date < minDate) {
+      return setError(editingId ? 'يجب أن يكون تاريخ المراجعة البعيدة في المستقبل (بعد اليوم).' : 'لا يمكن اختيار تاريخ مضى للمراجعة البعيدة.');
+    }
     if (from === null || to === null) return setError('يرجى اختيار «من الربع» و«إلى الربع»');
     if (!rangeValid) return setError('نطاق الأرباع غير صالح: «إلى الربع» هو موضع التوقف (بداية ذلك الربع)، فيجب أن يكون بعد «من الربع» وضمن 1–240.');
     if (assignments.some((a) => a.cycle_id === cycleId && a.review_date === date && a.id !== editingId)) {
       return setError('يوجد يوم مراجعة بعيدة مجدول في هذا التاريخ بالفعل.');
     }
+    // Today cannot be changed afterwards and may void submissions: confirm first.
+    if (!editingId && date === today) {
+      setConfirmToday(true);
+      return;
+    }
+    await save();
+  };
+
+  const save = async () => {
+    if (busy || from === null || to === null) return;
+    setError('');
     setBusy(true);
     try {
       const payload = { review_date: date, start_quarter: from, end_quarter: to, note: note.trim() };
@@ -121,8 +143,16 @@ export const DistantReviewAdminSection: React.FC<Props> = ({
       setError(err?.message || 'تعذر حفظ يوم المراجعة البعيدة');
     } finally {
       setBusy(false);
+      setConfirmToday(false);
     }
   };
+
+  // What the same-day conversion would cancel, from the data already loaded (the server has the final say).
+  const todayProgramDay = confirmToday ? programDayOfDate(settings.start_date, today, restDays, settings) : null;
+  const voidCount =
+    todayProgramDay === null
+      ? 0
+      : recitations.filter((r) => r.quarter_number === todayProgramDay).length + revisions.filter((r) => r.date === today).length;
 
   const startEdit = (a: DistantReviewAssignment) => {
     setError('');
@@ -174,6 +204,48 @@ export const DistantReviewAdminSection: React.FC<Props> = ({
 
   return (
     <div id="distant-review-section" className="bg-white rounded-3xl border border-stone-200 p-6 shadow-2xs space-y-4">
+      {confirmToday && (
+        <div className="fixed inset-0 z-50 bg-stone-900/40 flex items-center justify-center p-4" onMouseDown={(ev) => ev.target === ev.currentTarget && !busy && setConfirmToday(false)}>
+          <div id="distant-today-dialog" role="alertdialog" aria-modal="true" aria-labelledby="distant-today-title" className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-pink-100 p-5 space-y-4">
+            <h3 id="distant-today-title" className="font-bold text-stone-900 text-base">
+              {todayProgramDay === null
+                ? 'إضافة اليوم يومَ مراجعة بعيدة'
+                : 'سيتم تحويل اليوم إلى يوم مراجعة بعيدة وإلغاء احتساب الورد اليومي العادي لهذا اليوم'}
+            </h3>
+            <div className="text-xs text-stone-700 bg-pink-50/60 border border-pink-100 rounded-xl p-3 space-y-1.5 leading-relaxed">
+              {voidCount > 0 && (
+                <p id="distant-today-count" className="font-bold text-rose-800">
+                  يوجد {voidCount} من تسجيلات اليوم التي ستتوقف عن الاحتساب ضمن الورد اليومي
+                </p>
+              )}
+              <p>
+                المطلوب: <strong>{from !== null && to !== null ? distantRangeText(from, to) : ''}</strong>
+              </p>
+              <p className="text-stone-600">لا يمكن تعديل هذا اليوم أو حذفه بعد الحفظ.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                id="distant-today-yes"
+                type="button"
+                onClick={save}
+                disabled={busy}
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-700 hover:to-rose-600 disabled:opacity-60 cursor-pointer disabled:cursor-wait"
+              >
+                {busy ? 'جاري الحفظ...' : 'نعم، تحويل اليوم'}
+              </button>
+              <button
+                id="distant-today-cancel"
+                type="button"
+                onClick={() => setConfirmToday(false)}
+                disabled={busy}
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-stone-700 bg-white border border-stone-200 hover:bg-stone-50 disabled:opacity-60 cursor-pointer"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div>
         <h3 className="font-bold text-base text-stone-900 flex items-center gap-2">
           <BookMarked className="w-5 h-5 text-pink-600" />

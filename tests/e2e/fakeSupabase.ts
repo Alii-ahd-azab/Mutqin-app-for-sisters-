@@ -6,6 +6,9 @@
 // page loads). Writes are kept in localStorage, so they survive a page reload like server rows do.
 // Minimal batch scoping mirrors RLS: a batch admin reads only her batches, a member only her own.
 
+import { programDayOfDate } from '../../supabase/functions/_shared/logic/calculations.ts';
+import { buildProgramSettings } from '../../supabase/functions/_shared/logic/programState.ts';
+
 type Row = Record<string, any>;
 type World = { userId: string | null; tables: Record<string, Row[]>; today?: string };
 
@@ -69,6 +72,8 @@ function visible(name: string, r: Row): boolean {
       return r.admin_user_id === me && isMaster();
     case 'admin_alert_dismissals':
       return r.admin_user_id === me;
+    case 'voided_daily_records':
+      return r.user_id === me || (profile(me)?.role === 'admin' && batches.has(cycleBatch(r.cycle_id)));
     default:
       return true;
   }
@@ -147,6 +152,13 @@ class Query implements PromiseLike<any> {
     const rows = table(this.name);
     if (this.mode === 'insert') {
       const list: Row[] = (Array.isArray(this.payload) ? this.payload : [this.payload]).map((r: Row) => ({ id: newId(), created_at: new Date().toISOString(), ...r }));
+      if (this.name === 'tasmia_submissions' || this.name === 'review_confirmations') {
+        for (const r of list) {
+          const day = this.name === 'tasmia_submissions' ? r.quarter_number : r.program_day;
+          if (table('distant_review_assignments').some((a) => a.cycle_id === r.cycle_id && a.review_date === programToday() && a.cancelled_program_day != null && day >= a.cancelled_program_day))
+            return err('تحوّل اليوم إلى يوم مراجعة بعيدة، ولا يوجد ورد يومي جديد اليوم. يرجى تحديث الصفحة.', '23514');
+        }
+      }
       if (this.name === 'tasmia_submissions') for (const r of list) r.submitted_at ||= new Date().toISOString();
       if (this.name === 'review_confirmations') for (const r of list) r.confirmed_at ||= new Date().toISOString();
       rows.push(...list);
@@ -244,6 +256,40 @@ const rpcs: Record<string, (args: any) => any> = {
   },
 };
 
+/** Same rule as public.distant_review_create_today (tests/db.test.ts covers the real function). */
+function createToday(body: any, batchId: string, cycle: Row, today: string) {
+  if (table('distant_review_assignments').some((a) => a.cycle_id === cycle.id && a.review_date === today))
+    return { data: { error: 'يوجد يوم مراجعة بعيدة مجدول في هذا التاريخ بالفعل.' }, error: null };
+  const settings = buildProgramSettings(
+    cycle as any,
+    table('program_pauses').filter((p) => p.cycle_id === cycle.id) as any,
+    table('distant_review_assignments').filter((a) => a.cycle_id === cycle.id).map((a) => a.review_date)
+  );
+  const restDays = table('group_rest_days').filter((r) => r.cycle_id === cycle.id).map((r) => ({ id: r.id, date: r.rest_date, note: '', added_by_admin_id: '', created_at: r.created_at }));
+  const day = programDayOfDate(cycle.starts_on, today, restDays, settings);
+  const row = { id: newId(), batch_id: batchId, cycle_id: cycle.id, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), created_by_name_snapshot: profile(uid())?.full_name, review_date: today, start_quarter: body.start_quarter, end_quarter: body.end_quarter, note: body.note || null, cancelled_program_day: day };
+  table('distant_review_assignments').push(row);
+  let voided = 0;
+  if (day !== null) {
+    const voidedTable = table('voided_daily_records');
+    const base = (r: Row, kind: string) => ({ id: newId(), assignment_id: row.id, cycle_id: r.cycle_id, user_id: r.user_id, kind, original_id: r.id, program_day: day, program_date: today, voided_at: new Date().toISOString(), voided_by: uid() });
+    world.tables.tasmia_submissions = table('tasmia_submissions').filter((r) => {
+      if (r.cycle_id !== cycle.id || r.quarter_number !== day) return true;
+      voidedTable.push({ ...base(r, 'tasmia'), listener_id: r.listener_id, listener_name_snapshot: r.listener_name_snapshot, notes: r.notes, recorded_at: r.submitted_at });
+      voided++;
+      return false;
+    });
+    world.tables.review_confirmations = table('review_confirmations').filter((r) => {
+      if (r.cycle_id !== cycle.id || r.program_day !== day) return true;
+      voidedTable.push({ ...base(r, 'review'), start_quarter: r.start_quarter, end_quarter: r.end_quarter, recorded_at: r.confirmed_at });
+      voided++;
+      return false;
+    });
+  }
+  save();
+  return { data: { success: true, assignment: row, message: voided > 0 ? `تم تحويل اليوم إلى يوم مراجعة بعيدة، وأُلغي احتساب ${voided} من تسجيلات اليوم ضمن الورد اليومي` : 'تم تحويل اليوم إلى يوم مراجعة بعيدة' }, error: null };
+}
+
 function adminActions(body: any) {
   const batches = managedBatchIds();
   const today = programToday();
@@ -251,8 +297,9 @@ function adminActions(body: any) {
     const existing = body.assignment_id ? table('distant_review_assignments').find((x) => x.id === body.assignment_id) : null;
     const batchId = existing ? existing.batch_id : body.batch_id;
     if (!batches.has(batchId)) return { data: { error: 'لا تملكين صلاحية إدارة هذه الدفعة' }, error: null };
-    if (body.review_date <= today) return { data: { error: 'يجب أن يكون تاريخ المراجعة البعيدة في المستقبل (بعد اليوم).' }, error: null };
     const cycle = table('cycles').find((c) => c.batch_id === batchId && c.status === 'active');
+    if (body.action === 'distant-review-create' && body.review_date === today) return createToday(body, batchId, cycle, today);
+    if (body.review_date <= today) return { data: { error: 'يجب أن يكون تاريخ المراجعة البعيدة في المستقبل (بعد اليوم).' }, error: null };
     const row = existing ?? { id: newId(), batch_id: batchId, cycle_id: cycle.id, created_at: new Date().toISOString(), created_by_name_snapshot: profile(uid())?.full_name };
     Object.assign(row, { review_date: body.review_date, start_quarter: body.start_quarter, end_quarter: body.end_quarter, note: body.note || null, updated_at: new Date().toISOString() });
     if (!existing) table('distant_review_assignments').push(row);

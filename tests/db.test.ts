@@ -138,7 +138,7 @@ test('the three migrations change no existing row (users, Tasmi\'a, reviews, cyc
       await fresh.exec(migrationSql(name));
       assert.deepEqual(await snapshot(fresh), before, `after ${name}`);
     }
-    for (const t of ['distant_review_assignments', 'distant_review_completions', 'notification_states', 'admin_notification_batch_subscriptions', 'admin_alert_dismissals'])
+    for (const t of ['distant_review_assignments', 'distant_review_completions', 'notification_states', 'admin_notification_batch_subscriptions', 'admin_alert_dismissals', 'voided_daily_records'])
       assert.equal((await one(fresh, `select count(*)::int n from public.${t}`)).n, 0, `${t} starts empty`);
   } finally {
     await fresh.close();
@@ -534,4 +534,195 @@ test('regression: every table the app reads exists and is readable by authentica
     assert.ok((await one(db, 'select to_regclass($1) r', [`public.${t}`])).r, `public.${t} exists`);
     await as(id.m1, (tx) => tx.query(`select 1 from public.${t} limit 1`));
   }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Turning TODAY into a «المراجعة البعيدة» day (distant_review_create_today, voided_daily_records)
+// ---------------------------------------------------------------------------------------------
+
+// Seed calendar of batch A: START..TODAY = 16 dates, minus one rest day and two paused dates → 13.
+const CANCELLED = 13;
+const createToday = (day: number | null, date = TODAY, s = 1, e = 9, batch = id.batchA) =>
+  one(db, 'select public.distant_review_create_today($1, $2, $3, $4, $5, $6, $7) r', [batch, date, s, e, null, day, id.adminA]).then((x) => x.r);
+const addTasmia = (user: string, q: number, listener = id.m2, cycle = id.cycleA) =>
+  db.query('insert into tasmia_submissions(cycle_id, user_id, listener_id, quarter_number, listener_name_snapshot, notes) values ($1,$2,$3,$4,$5,$6)', [cycle, user, listener, q, 'x', 'ملاحظة']);
+const addReview = (user: string, day: number, cycle = id.cycleA) =>
+  db.query('insert into review_confirmations(cycle_id, user_id, program_day, start_quarter, end_quarter) values ($1,$2,$3,$4,$5)', [cycle, user, day, Math.max(1, day - 7), day]);
+
+test('same-day: service role only; future path (distant_review_save) still refuses today', { skip }, async () => {
+  for (const uid of [id.master, id.adminA, id.m1, null])
+    await as(uid, (tx) => fails(tx, 'select public.distant_review_create_today($1, $2, 1, 9, null, 13, $3)', [id.batchA, TODAY, id.adminA], '42501'));
+  await scratch(async () => {
+    await fails(db, 'select public.distant_review_save(null, $1, $2, 1, 9, null, $3)', [id.batchA, TODAY, id.adminA], /في المستقبل/);
+    // A future day still works as before and cancels nothing.
+    const future = (await one(db, 'select public.distant_review_save(null, $1, $2, 1, 9, null, $3) r', [id.batchA, addDays(TODAY, 3), id.adminA])).r;
+    assert.equal(future.cancelled_program_day, null);
+    assert.equal(await n(db, 'select 1 from voided_daily_records'), 0);
+    // An existing future day cannot be edited onto today.
+    await fails(db, 'select public.distant_review_save($1, $2, $3, 1, 9, null, $4)', [future.id, id.batchA, TODAY, id.adminA], /في المستقبل/);
+  });
+});
+
+test('same-day: before anyone submits → succeeds, nothing voided; validations hold', { skip }, async () => {
+  await scratch(async () => {
+    await fails(db, 'select public.distant_review_create_today($1, $2, 1, 9, null, 13, $3)', [id.batchA, addDays(TODAY, -1), id.adminA], /تغيّر يوم البرنامج/);
+    await fails(db, 'select public.distant_review_create_today($1, $2, 1, 9, null, 13, $3)', [id.batchA, addDays(TODAY, 1), id.adminA], /تغيّر يوم البرنامج/);
+    await fails(db, 'select public.distant_review_create_today($1, $2, 9, 9, null, 13, $3)', [id.batchA, TODAY, id.adminA], /نطاق الأرباع/);
+    await fails(db, 'select public.distant_review_create_today($1, $2, 1, 9, null, 241, $3)', [id.batchA, TODAY, id.adminA], /يوم البرنامج/);
+    const r = await createToday(CANCELLED);
+    assert.deepEqual([r.voided_tasmia, r.voided_reviews], [0, 0]);
+    assert.equal(r.assignment.review_date, TODAY);
+    assert.equal(r.assignment.cancelled_program_day, CANCELLED);
+    assert.equal(r.assignment.created_by_name_snapshot, 'مشرفة الدفعة أ');
+    await fails(db, 'select public.distant_review_create_today($1, $2, 1, 9, null, 13, $3)', [id.batchA, TODAY, id.adminA], '23505');
+  });
+});
+
+test('same-day: the cancelled day\'s rows move to the archive; catch-up, other days and other batches stay', { skip }, async () => {
+  await scratch(async () => {
+    const m1Tasmia = await n(db, 'select 1 from tasmia_submissions where user_id=$1', [id.m1]);
+    await addTasmia(id.m1, CANCELLED);
+    await addTasmia(id.m2, CANCELLED, id.m1);
+    await addTasmia(id.m3, 6, id.m1); // catch-up today: stays
+    await db.query("insert into auth.users(id, email) values ($1, 'b2@test.local')", [uuid(50)]);
+    await db.query("insert into public.profiles(id, full_name, phone, role) values ($1, 'مستمعة ب', '01099999999', 'member')", [uuid(50)]);
+    await db.query("insert into public.batch_memberships(batch_id, user_id, membership_role) values ($1, $2, 'member')", [id.batchB, uuid(50)]);
+    await addTasmia(id.mB, CANCELLED, uuid(50), id.cycleB); // other batch: stays
+    await addReview(id.m1, CANCELLED);
+    await addReview(id.m3, 4); // catch-up: stays
+    await addReview(id.mB, CANCELLED, id.cycleB); // other batch: stays
+
+    const r = await createToday(CANCELLED);
+    assert.deepEqual([r.voided_tasmia, r.voided_reviews], [2, 1]);
+
+    assert.equal(await n(db, 'select 1 from tasmia_submissions where cycle_id=$1 and quarter_number=$2', [id.cycleA, CANCELLED]), 0);
+    assert.equal(await n(db, 'select 1 from review_confirmations where cycle_id=$1 and program_day=$2', [id.cycleA, CANCELLED]), 0);
+    assert.equal(await n(db, 'select 1 from tasmia_submissions where user_id=$1', [id.m1]), m1Tasmia, 'her earlier quarters are untouched');
+    assert.equal(await n(db, 'select 1 from tasmia_submissions where user_id=$1 and quarter_number=6', [id.m3]), 1);
+    assert.equal(await n(db, 'select 1 from review_confirmations where user_id=$1 and program_day=4', [id.m3]), 1);
+    assert.equal(await n(db, 'select 1 from tasmia_submissions where cycle_id=$1 and quarter_number=$2', [id.cycleB, CANCELLED]), 1);
+    assert.equal(await n(db, 'select 1 from review_confirmations where cycle_id=$1 and program_day=$2', [id.cycleB, CANCELLED]), 1);
+
+    const t = await one(db, "select * from voided_daily_records where kind='tasmia' and user_id=$1", [id.m1]);
+    assert.equal(t.program_day, CANCELLED);
+    assert.equal(t.assignment_id, r.assignment.id);
+    assert.equal(t.listener_id, id.m2);
+    assert.equal(t.listener_name_snapshot, 'مريم أحمد');
+    assert.equal(t.notes, 'ملاحظة');
+    assert.equal(t.voided_by, id.adminA);
+    assert.ok(t.recorded_at && t.voided_at);
+    const v = await one(db, "select * from voided_daily_records where kind='review' and user_id=$1", [id.m1]);
+    assert.deepEqual([v.program_day, v.start_quarter, v.end_quarter], [CANCELLED, CANCELLED - 7, CANCELLED]);
+  });
+});
+
+test('same-day: an app opened before the conversion cannot submit the cancelled day; catch-up still works', { skip }, async () => {
+  await scratch(async () => {
+    await createToday(CANCELLED);
+    await become(id.m1);
+    const ins = (q: number) => db.query('insert into tasmia_submissions(cycle_id, user_id, listener_id, quarter_number, listener_name_snapshot) values ($1,$2,$3,$4,$5)', [id.cycleA, id.m1, id.m2, q, 'x']);
+    await fails(db, 'insert into tasmia_submissions(cycle_id, user_id, listener_id, quarter_number, listener_name_snapshot) values ($1,$2,$3,$4,$5)', [id.cycleA, id.m1, id.m2, CANCELLED, 'x'], /تحوّل اليوم إلى يوم مراجعة بعيدة/);
+    await fails(db, 'insert into review_confirmations(cycle_id, user_id, program_day, start_quarter, end_quarter) values ($1,$2,$3,1,$3)', [id.cycleA, id.m1, CANCELLED], /تحوّل اليوم إلى يوم مراجعة بعيدة/);
+    // Catch-up of earlier days is still accepted on the distant-review day.
+    await ins(6);
+    await db.query('insert into review_confirmations(cycle_id, user_id, program_day, start_quarter, end_quarter) values ($1,$2,5,1,5)', [id.cycleA, id.m1]);
+    await become(null);
+  });
+});
+
+test('same-day: on the next program day the same quarter and review can be submitted again', { skip }, async () => {
+  await scratch(async () => {
+    await addTasmia(id.m1, CANCELLED);
+    await addReview(id.m1, CANCELLED);
+    const r = await createToday(CANCELLED);
+    // The program date moves on: the assignment now lies in the past.
+    await db.query('update distant_review_assignments set review_date=$2 where id=$1', [r.assignment.id, addDays(TODAY, -1)]);
+    await become(id.m1);
+    await db.query('insert into tasmia_submissions(cycle_id, user_id, listener_id, quarter_number, listener_name_snapshot) values ($1,$2,$3,$4,$5)', [id.cycleA, id.m1, id.m2, CANCELLED, 'x']);
+    await db.query('insert into review_confirmations(cycle_id, user_id, program_day, start_quarter, end_quarter) values ($1,$2,$3,1,$3)', [id.cycleA, id.m1, CANCELLED]);
+    await become(null);
+    assert.equal(await n(db, 'select 1 from tasmia_submissions where user_id=$1 and quarter_number=$2', [id.m1, CANCELLED]), 1);
+    assert.equal(await n(db, "select 1 from voided_daily_records where user_id=$1", [id.m1]), 2, 'the archive keeps the voided rows');
+  });
+});
+
+test('same-day: today already a rest or paused day → no cancelled day, nothing voided, no guard', { skip }, async () => {
+  await scratch(async () => {
+    await db.query('insert into group_rest_days(cycle_id, rest_date) values ($1, $2)', [id.cycleA, TODAY]);
+    await addTasmia(id.m1, CANCELLED - 1);
+    const r = await createToday(null);
+    assert.equal(r.assignment.cancelled_program_day, null);
+    assert.deepEqual([r.voided_tasmia, r.voided_reviews], [0, 0]);
+    assert.equal(await n(db, 'select 1 from tasmia_submissions where user_id=$1 and quarter_number=$2', [id.m1, CANCELLED - 1]), 1);
+    await addReview(id.m1, CANCELLED - 1);
+  });
+});
+
+test('same-day: the day stays a normal distant review: completion works; it cannot be edited or deleted', { skip }, async () => {
+  await scratch(async () => {
+    const r = await createToday(CANCELLED);
+    await fails(db, 'select public.distant_review_save($1, $2, $3, 1, 9, null, $4)', [r.assignment.id, id.batchA, addDays(TODAY, 2), id.adminA], /حلّ موعده/);
+    await fails(db, 'select public.distant_review_delete($1, $2)', [r.assignment.id, id.batchA], /حلّ موعده/);
+    await become(id.m1);
+    const done = (await one(db, 'select public.complete_distant_review($1) r', [r.assignment.id])).r;
+    assert.deepEqual([done.completed_on, done.already_recorded], [TODAY, false]);
+    await become(null);
+  });
+});
+
+test('same-day: voided records RLS — own rows, managed batches, nobody writes, anon nothing', { skip }, async () => {
+  await scratch(async () => {
+    await addTasmia(id.m1, CANCELLED);
+    await addReview(id.m1, CANCELLED);
+    await addReview(id.m2, CANCELLED);
+    const r = await createToday(CANCELLED);
+    assert.equal(r.voided_reviews, 2);
+    await become(id.m1);
+    assert.equal(await n(db, 'select 1 from voided_daily_records'), 2, 'her own only');
+    assert.equal(await n(db, 'select 1 from voided_daily_records where user_id<>$1', [id.m1]), 0);
+    await fails(db, "insert into voided_daily_records(cycle_id, user_id, kind, original_id, program_day, program_date, recorded_at) values ($1,$2,'review',gen_random_uuid(),1,$3,now())", [id.cycleA, id.m1, TODAY], '42501');
+    await fails(db, 'update voided_daily_records set program_day=1', [], '42501');
+    await fails(db, 'delete from voided_daily_records', [], '42501');
+    await become(id.mB);
+    assert.equal(await n(db, 'select 1 from voided_daily_records'), 0);
+    await become(id.adminA);
+    assert.equal(await n(db, 'select 1 from voided_daily_records'), 3, 'her batch');
+    await become(id.adminB);
+    assert.equal(await n(db, 'select 1 from voided_daily_records'), 0, 'another batch');
+    await become(id.master);
+    assert.equal(await n(db, 'select 1 from voided_daily_records'), 3);
+    await become(null);
+  });
+  await as(null, (tx) => fails(tx, 'select 1 from voided_daily_records', [], '42501'));
+});
+
+test('same-day: transfer and permanent delete keep working with the archive', { skip }, async () => {
+  await scratch(async () => {
+    await addTasmia(id.m1, CANCELLED);
+    await addTasmia(id.m3, CANCELLED, id.m1);
+    await addReview(id.m3, CANCELLED);
+    await createToday(CANCELLED);
+    // Transfer: the member moves; her archived rows stay with the old cycle, her own history stays hers.
+    await db.query('select public.move_member_batch($1, $2, $3, $4)', [id.m3, id.batchB, id.batchA, id.master]);
+    assert.equal(await n(db, 'select 1 from batch_memberships where user_id=$1 and batch_id=$2', [id.m3, id.batchB]), 1);
+    assert.equal(await n(db, 'select 1 from voided_daily_records where user_id=$1 and cycle_id=$2', [id.m3, id.cycleA]), 2);
+    await become(id.m3);
+    assert.equal(await n(db, 'select 1 from voided_daily_records'), 2);
+    await become(null);
+    // Permanent delete: her archived rows go with her; a listener's deletion only clears the link.
+    await db.query('delete from auth.users where id=$1', [id.m3]);
+    assert.equal(await n(db, 'select 1 from voided_daily_records where user_id=$1', [id.m3]), 0);
+    await db.query('delete from auth.users where id=$1', [id.m2]);
+    const left = await one(db, "select listener_id, listener_name_snapshot from voided_daily_records where kind='tasmia' and user_id=$1", [id.m1]);
+    assert.equal(left.listener_id, null);
+    assert.equal(left.listener_name_snapshot, 'مريم أحمد');
+  });
+});
+
+test('same-day: a peer test sees the voided quarter as not recited (it reads the live table)', { skip }, async () => {
+  await scratch(async () => {
+    await addTasmia(id.m1, CANCELLED);
+    await createToday(CANCELLED);
+    assert.equal((await one(db, 'select count(distinct s.quarter_number)::int n from tasmia_submissions s where s.cycle_id=$1 and s.user_id=$2 and s.quarter_number between $3 and $3', [id.cycleA, id.m1, CANCELLED])).n, 0);
+  });
 });

@@ -16,6 +16,7 @@ export const NEW_MIGRATIONS = [
   '20261027120100_distant_review_days.sql',
   '20261027120200_notification_state.sql',
   '20261030120000_distant_review_priority_and_alert_dismissals.sql',
+  '20261106120000_same_day_distant_review.sql',
 ];
 
 // Minimal stand-ins for the Supabase platform objects the schema references.

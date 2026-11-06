@@ -8,6 +8,7 @@ import type {
   CycleInfo,
   DistantReviewAssignment,
   DistantReviewCompletion,
+  VoidedDailyRecord,
 } from '../supabase/functions/_shared/logic/programTypes.ts';
 
 // Core program types live in the shared folder so the Edge Functions use the same definitions.
@@ -21,6 +22,7 @@ export type {
   CycleInfo,
   DistantReviewAssignment,
   DistantReviewCompletion,
+  VoidedDailyRecord,
 };
 
 // «المراجعة البعيدة»: what an admin submits for one day (the TO quarter is the stopping boundary).
@@ -115,6 +117,8 @@ export interface BatchBootstrap {
   // (members: their own; admins: their batch's)
   distantReviews: DistantReviewAssignment[];
   distantCompletions: DistantReviewCompletion[];
+  // Normal submissions of a cancelled program day (see VoidedDailyRecord), visible through RLS
+  voidedRecords: VoidedDailyRecord[];
 }
 
 // ============ PEER TESTING (اختبار الزملاء) ============

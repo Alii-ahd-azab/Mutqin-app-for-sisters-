@@ -70,6 +70,21 @@ export interface DistantReviewCompletion {
   completed_on: string; // YYYY-MM-DD (program date of the confirmation)
 }
 
+// A normal Tasmi'a / review row of a program day that was cancelled the same day by a
+// «المراجعة البعيدة» day. It does not count; it stays visible in the member's history.
+export interface VoidedDailyRecord {
+  id: string;
+  kind: 'tasmia' | 'review';
+  member_id: string;
+  program_day: number; // for Tasmi'a, also its quarter number
+  date: string; // YYYY-MM-DD (the program date that was converted)
+  review_start_quarter?: number;
+  review_end_quarter?: number;
+  listener_name?: string;
+  notes?: string;
+  voided_at: string;
+}
+
 export interface RecitationLog {
   id: string;
   member_id: string;
