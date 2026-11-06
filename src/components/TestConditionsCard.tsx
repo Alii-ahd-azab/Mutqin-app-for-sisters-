@@ -92,7 +92,7 @@ export const TestConditionsCard: React.FC<TestConditionsCardProps> = ({ test, cl
             <strong className="text-stone-900">شروط التأهل: </strong>
             <span>
               إتمام تسميع جميع أرباع النطاق (من الربع {test.range_start} إلى الربع {test.range_end})، وألا تكون العضوة مؤهلة
-              للإقصاء بسبب تأخر التسميع أو المراجعة.
+              للإقصاء بسبب تأخر التسميع. ولا يمنع تأخر المراجعة الذاتية من دخول الاختبار.
             </span>
           </div>
         </div>

@@ -297,7 +297,7 @@ Deno.serve(async (req) => {
       const { test, cycle } = await loadTest(admin, attempt.test_id);
       requireExaminer(caller, cycle, test);
 
-      // The candidate's elimination status is re-checked at submission time.
+      // The candidate's Tasmi'a delay is re-checked at submission time.
       const progress = await loadBatchProgress(admin, cycle);
       const delay = progress.delayById.get(attempt.candidate_id);
       if (!delay) {

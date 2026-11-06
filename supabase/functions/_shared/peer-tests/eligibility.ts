@@ -1,7 +1,8 @@
 // Peer-testing rules (pure functions, unit-tested; used by the Edge Function).
 // Two rules are deliberately SEPARATE:
 //   * a CANDIDATE must have completed the whole range, must not have passed
-//     already, and must not be «مؤهلة للإقصاء»;
+//     already, and must not be severely behind in Tasmi'a. Overdue self-revision
+//     never prevents her from taking a test;
 //   * an EXAMINER only needs to be an active member of the test's batch —
 //     being «مؤهلة للإقصاء» does NOT prevent her from examining others.
 
@@ -35,18 +36,14 @@ export function isPeerTestLive(
   return true;
 }
 
-/** Arabic reason when a member is «مؤهلة للإقصاء», otherwise null. */
-export function eliminationReason(delay: MemberDelayStatus): string | null {
-  if (delay.isSeverelyBehindRecitation && delay.isSeverelyBehindRevision) {
-    return `مؤهلة للإقصاء بسبب تأخر التسميع (${delay.missedQuartersCount} أرباع فائتة) والمراجعة (${delay.missedRevisionDaysCount} أيام فائتة)`;
-  }
-  if (delay.isSeverelyBehindRecitation) {
-    return `مؤهلة للإقصاء بسبب تأخر التسميع (${delay.missedQuartersCount} أرباع فائتة)`;
-  }
-  if (delay.isSeverelyBehindRevision) {
-    return `مؤهلة للإقصاء بسبب تأخر المراجعة (${delay.missedRevisionDaysCount} أيام فائتة)`;
-  }
-  return null;
+/**
+ * Arabic reason when overdue Tasmi'a blocks a candidate, otherwise null.
+ * Overdue self-revision is deliberately not a reason.
+ */
+export function tasmiaDelayReason(delay: MemberDelayStatus): string | null {
+  return delay.isSeverelyBehindRecitation
+    ? `مؤهلة للإقصاء بسبب تأخر التسميع (${delay.missedQuartersCount} أرباع فائتة)`
+    : null;
 }
 
 /** Quarters of the test range the member has not recited yet. */
@@ -88,9 +85,9 @@ export function evaluateCandidate(input: {
     );
   }
 
-  const elimination = eliminationReason(input.delay);
-  if (elimination) {
-    reasons.push(elimination);
+  const tasmiaDelay = tasmiaDelayReason(input.delay);
+  if (tasmiaDelay) {
+    reasons.push(tasmiaDelay);
   }
 
   return {

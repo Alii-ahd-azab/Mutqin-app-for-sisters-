@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { DistantReviewAssignment, DistantReviewCompletion, RecitationLog, RevisionLog, User } from '../types';
+import { DistantReviewAssignment, DistantReviewCompletion, RecitationLog, RevisionLog, User, VoidedDailyRecord } from '../types';
 import { formatArabicDateWithDayName } from '../lib/calculations';
 import { getQuarterInfo } from '../data/quranData';
-import { CheckCircle2, Calendar, MessageSquare, BookMarked, Check, UserCheck, Headphones, Pencil, Clock, BookOpenCheck } from 'lucide-react';
+import { CheckCircle2, Calendar, MessageSquare, BookMarked, Check, UserCheck, Headphones, Pencil, Clock, BookOpenCheck, Ban } from 'lucide-react';
 import { CorrectListenerModal } from './Modals';
 
 // Mirrors the database rule: one listener correction within 12 hours of submitting.
@@ -16,7 +16,55 @@ interface MemberHistoryViewProps {
   onCorrectListener: (submissionId: string, newListenerId: string) => Promise<void>;
   // «المراجعة البعيدة»: her completed ones (kept permanently) and the ones still owed
   distantHistory?: { assignment: DistantReviewAssignment; completion?: DistantReviewCompletion }[];
+  // Her normal submissions of a program day that was cancelled the same day (never counted)
+  voidedRecords?: VoidedDailyRecord[];
 }
+
+const VOIDED_LABEL = 'أُلغي احتسابه: تحوّل اليوم إلى مراجعة بعيدة';
+
+const VoidedRow: React.FC<{ record: VoidedDailyRecord }> = ({ record: v }) => {
+  const qInfo = getQuarterInfo(v.program_day);
+  return (
+    <div id={`voided-${v.kind}-${v.program_day}`} className="voided-record py-3 flex items-start justify-between gap-3 text-xs opacity-80">
+      <div className="space-y-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          {v.kind === 'tasmia' ? (
+            <>
+              <span className="font-bold text-stone-600">الربع رقم {v.program_day}</span>
+              <span className="text-stone-400">
+                ({qInfo.surahName} - الجزء {qInfo.juz})
+              </span>
+            </>
+          ) : (
+            <span className="font-bold text-stone-600">
+              مراجعة من الربع {v.review_start_quarter} إلى {v.review_end_quarter}
+            </span>
+          )}
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-stone-100 text-stone-600 border border-stone-300">
+            <Ban className="w-3 h-3 text-stone-500" />
+            {VOIDED_LABEL}
+          </span>
+        </div>
+        {v.listener_name && (
+          <div className="text-[11px] text-stone-500 flex items-center gap-1.5">
+            <UserCheck className="w-3 h-3 text-stone-400" />
+            <span>الزميل المستمع: {v.listener_name}</span>
+          </div>
+        )}
+        {v.notes && (
+          <p className="text-[11px] text-stone-500 flex items-center gap-1">
+            <MessageSquare className="w-3 h-3 text-stone-400 shrink-0" />
+            <span>{v.notes}</span>
+          </p>
+        )}
+      </div>
+      <div className="text-left shrink-0 text-stone-400 text-[11px] flex items-center gap-1">
+        <Calendar className="w-3 h-3" />
+        <span>{v.date}</span>
+      </div>
+    </div>
+  );
+};
 
 export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
   currentUser,
@@ -25,6 +73,7 @@ export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
   peerMembers,
   onCorrectListener,
   distantHistory = [],
+  voidedRecords = [],
 }) => {
   const [activeTab, setActiveTab] = useState<'recitations' | 'revisions' | 'distant' | 'listening'>('recitations');
   const [editingRecitation, setEditingRecitation] = useState<RecitationLog | null>(null);
@@ -56,6 +105,9 @@ export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
     (r) => r.member_id === currentUser.id || r.reciter_id === currentUser.id
   );
   const myRevisions = revisions.filter((r) => r.member_id === currentUser.id);
+  const myVoided = voidedRecords.filter((v) => v.member_id === currentUser.id);
+  const myVoidedRecitations = myVoided.filter((v) => v.kind === 'tasmia');
+  const myVoidedRevisions = myVoided.filter((v) => v.kind === 'review');
 
   // Recitations where current user was the listening peer for colleagues
   const myListeningSessions = useMemo(() => {
@@ -236,12 +288,16 @@ export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
             })
           )
         ) : activeTab === 'revisions' ? (
-          myRevisions.length === 0 ? (
+          myRevisions.length === 0 && myVoidedRevisions.length === 0 ? (
             <div className="text-center py-8 text-stone-400 text-xs">
               لم تسجل أي مراجعة بعد.
             </div>
           ) : (
-            myRevisions.map((rev) => {
+            <>
+            {myVoidedRevisions.map((v) => (
+              <VoidedRow key={v.id} record={v} />
+            ))}
+            {myRevisions.map((rev) => {
               const startInfo = getQuarterInfo(rev.review_start_quarter);
               const endInfo = getQuarterInfo(rev.review_end_quarter);
               return (
@@ -268,14 +324,19 @@ export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
                   </div>
                 </div>
               );
-            })
+            })}
+            </>
           )
-        ) : myRecitations.length === 0 ? (
+        ) : myRecitations.length === 0 && myVoidedRecitations.length === 0 ? (
           <div className="text-center py-8 text-stone-400 text-xs">
             لم تسجل أي تسميع بعد. يمكنك تسجيل تسميع اليوم من اللوحة الرئيسية أعلاه.
           </div>
         ) : (
-          myRecitations.map((rec) => {
+          <>
+          {myVoidedRecitations.map((v) => (
+            <VoidedRow key={v.id} record={v} />
+          ))}
+          {myRecitations.map((rec) => {
             const qInfo = getQuarterInfo(rec.quarter_number);
             return (
               <div key={rec.id} className="py-3 flex items-start justify-between gap-3 text-xs">
@@ -330,7 +391,8 @@ export const MemberHistoryView: React.FC<MemberHistoryViewProps> = ({
                 </div>
               </div>
             );
-          })
+          })}
+          </>
         )}
       </div>
 

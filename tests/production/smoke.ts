@@ -201,8 +201,8 @@ async function api() {
   record('batch admin refused on another batch', otherBatch.status === 403 || !!otherBatch.error, JSON.stringify(otherBatch).slice(0, 120));
   const sameBound = await invoke(adminA, { action: 'distant-review-create', batch_id: batches.S1.id, review_date: addDays(TODAY, 4), start_quarter: 9, end_quarter: 9 });
   record('TO must come after FROM (TO is the stopping boundary)', sameBound.status === 400, JSON.stringify(sameBound).slice(0, 120));
-  const pastTry = await invoke(adminA, { action: 'distant-review-create', batch_id: batches.S1.id, review_date: TODAY, start_quarter: 1, end_quarter: 2 });
-  record('creation only for future program dates', pastTry.status === 400 && /المستقبل/.test(pastTry.error || ''), JSON.stringify(pastTry).slice(0, 120));
+  const pastTry = await invoke(adminA, { action: 'distant-review-create', batch_id: batches.S1.id, review_date: addDays(TODAY, -1), start_quarter: 1, end_quarter: 2 });
+  record('a past date is refused', pastTry.status === 400 && /المستقبل/.test(pastTry.error || ''), JSON.stringify(pastTry).slice(0, 120));
   const masterOnS2 = await invoke(master, { action: 'distant-review-create', batch_id: batches.S2.id, review_date: future, start_quarter: 20, end_quarter: 30 });
   record('master admin creates on any batch', masterOnS2.status === 200, JSON.stringify(masterOnS2).slice(0, 120));
   const edited = await invoke(adminA, { action: 'distant-review-update', assignment_id: created.assignment?.id, review_date: future, start_quarter: 2, end_quarter: 12, note: 'SMOKE edit' });
@@ -260,6 +260,35 @@ async function api() {
   const cT = await mB.rpc('complete_distant_review', { p_assignment_id: onToday });
   const cT2 = await mB.rpc('complete_distant_review', { p_assignment_id: onToday });
   record("open pause: today's distant review completable, once", !cT.error && cT2.data?.already_recorded === true, cT.error?.message);
+
+  // ---------------------------------------------------------------- today converted (its own temporary batch S3)
+  const s3Name = `SMOKE S3 ${tag}`;
+  const s3 = must(await service.rpc('create_batch_with_cycle', { p_name: s3Name, p_start_date: START, p_actor: null }), 'batch S3') as any;
+  const s3Cycle = must(await service.from('cycles').select('id').eq('batch_id', s3.id).eq('status', 'active').single(), 'cycle S3') as any;
+  batches.S3 = { id: s3.id, name: s3Name, cycle: s3Cycle.id };
+  await createAccount('s3a', 'member', { memberBatch: s3.id });
+  await createAccount('s3b', 'member', { memberBatch: s3.id });
+  const s3Row = { id: s3Cycle.id, batch_id: s3.id, cycle_number: 1, starts_on: START };
+  // Program day 11 today. s3a submitted today's quarter and review; s3b stopped at day 10.
+  const s3Tasmia = (k: string, l: string, n: number) => Array.from({ length: n }, (_, i) => ({ cycle_id: s3Cycle.id, user_id: acc[k].id, listener_id: acc[l].id, quarter_number: i + 1, listener_name_snapshot: 'x' }));
+  const s3Reviews = (k: string, n: number) => Array.from({ length: n }, (_, i) => ({ cycle_id: s3Cycle.id, user_id: acc[k].id, program_day: i + 1, start_quarter: Math.max(1, i - 6), end_quarter: i + 1 }));
+  must(await service.from('tasmia_submissions').insert([...s3Tasmia('s3a', 's3b', 11), ...s3Tasmia('s3b', 's3a', 10)]), 'tasmia S3');
+  must(await service.from('review_confirmations').insert([...s3Reviews('s3a', 11), ...s3Reviews('s3b', 10)]), 'reviews S3');
+  const converted = await invoke(master, { action: 'distant-review-create', batch_id: s3.id, review_date: TODAY, start_quarter: 1, end_quarter: 9 });
+  record('admin-actions converts today; the cancelled day\'s submissions are voided', converted.status === 200 && converted.voided_tasmia === 1 && converted.voided_reviews === 1 && converted.assignment?.cancelled_program_day === 11, JSON.stringify(converted).slice(0, 200));
+  const s3After = computeBatchDelays(await loadBatchProgram(service, s3Row), TODAY);
+  record('today goes back to program day 10; both sisters are in the same state', s3After.cycleInfo.quarter_of_day === 10 && !s3After.activeDates.includes(TODAY) && JSON.stringify(s3After.delayById.get(acc.s3a.id)) === JSON.stringify(s3After.delayById.get(acc.s3b.id)));
+  const s3Next = computeBatchDelays(await loadBatchProgram(service, s3Row), addDays(TODAY, 1));
+  record('the next day is exactly day 11 and nobody has debt', s3Next.cycleInfo.quarter_of_day === 11 && s3Next.delayById.get(acc.s3a.id)?.requiredQuarter === 11 && s3Next.delayById.get(acc.s3a.id)?.missedQuartersCount === 0 && s3Next.delayById.get(acc.s3b.id)?.missedRevisionDaysCount === 0);
+  const s3a = await signIn(acc.s3a);
+  record('she reads her voided records', ((await s3a.from('voided_daily_records').select('kind')).data || []).length === 2);
+  record('another member does not', ((await m1.from('voided_daily_records').select('kind').eq('cycle_id', s3Cycle.id)).data || []).length === 0);
+  record('anon denied: voided_daily_records', !!(await anon.from('voided_daily_records').select('*')).error);
+  record('an app opened earlier cannot submit the cancelled quarter', !!(await s3a.from('tasmia_submissions').insert({ cycle_id: s3Cycle.id, user_id: acc.s3a.id, listener_id: acc.s3b.id, quarter_number: 11 })).error);
+  const sameDayDel = await invoke(master, { action: 'distant-review-delete', assignment_id: converted.assignment?.id });
+  record('the converted day cannot be deleted', sameDayDel.status === 400, JSON.stringify(sameDayDel).slice(0, 120));
+  const sdDone = await s3a.rpc('complete_distant_review', { p_assignment_id: converted.assignment?.id });
+  record('the distant review of the converted day completes normally', !sdDone.error && sdDone.data?.already_recorded === false, sdDone.error?.message);
 
   // Reset the master follows for the browser phase (S1 ON, S2 OFF is set there through the UI).
   await master.rpc('set_notification_batch_follow', { p_batch_id: batches.S1.id, p_enabled: false });

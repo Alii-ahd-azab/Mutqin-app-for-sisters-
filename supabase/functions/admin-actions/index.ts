@@ -11,6 +11,67 @@ import {
 } from '../_shared/auth.ts';
 // The program date (the day starts at 05:00 Africa/Cairo).
 import { programDate } from '../_shared/logic/programDate.ts';
+import { programDayOfDate } from '../_shared/logic/calculations.ts';
+import { buildProgramSettings } from '../_shared/logic/programState.ts';
+import type { RestDay } from '../_shared/logic/programTypes.ts';
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
+
+/*
+ * The active program day that turning TODAY into a «المراجعة البعيدة» day cancels, from the shared
+ * calendar: null when today is already not a program day (rest day, pause), before the cycle starts,
+ * or past the 240 days of a completed program.
+ */
+async function cancelledProgramDay(
+  admin: SupabaseClient,
+  batchId: string,
+  today: string
+): Promise<number | null> {
+  const { data: cycle, error } = await admin
+    .from('cycles')
+    .select('id, starts_on, cycle_number')
+    .eq('batch_id', batchId)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (error) {
+    throw new HttpError('تعذر قراءة الدورة الحالية', 500);
+  }
+
+  if (!cycle || today < cycle.starts_on) {
+    return null;
+  }
+
+  const [pauses, rest, distant] = await Promise.all([
+    admin.from('program_pauses').select('paused_on, resumed_on').eq('cycle_id', cycle.id),
+    admin.from('group_rest_days').select('id, rest_date, created_at').eq('cycle_id', cycle.id),
+    admin.from('distant_review_assignments').select('review_date').eq('cycle_id', cycle.id),
+  ]);
+
+  if (pauses.error || rest.error || distant.error) {
+    throw new HttpError('تعذر قراءة تقويم الدورة', 500);
+  }
+
+  const restDays: RestDay[] = (rest.data || []).map((r) => ({
+    id: r.id,
+    date: r.rest_date,
+    note: '',
+    added_by_admin_id: '',
+    created_at: r.created_at,
+  }));
+
+  const day = programDayOfDate(
+    cycle.starts_on,
+    today,
+    restDays,
+    buildProgramSettings(
+      cycle,
+      pauses.data || [],
+      (distant.data || []).map((r) => r.review_date)
+    )
+  );
+
+  return day !== null && day <= 240 ? day : null;
+}
 
 function isIsoDate(value: unknown): value is string {
   if (
@@ -337,6 +398,22 @@ Deno.serve(async (req) => {
           batchId
         );
 
+      // Adding TODAY: the day leaves the calendar and its normal submissions stop counting.
+      const isSameDay =
+        action ===
+          'distant-review-create' &&
+        body.review_date ===
+          programDate();
+
+      const cancelledDay =
+        isSameDay
+          ? await cancelledProgramDay(
+              admin,
+              batch.id,
+              body.review_date
+            )
+          : null;
+
       const rpc =
         action ===
         'distant-review-delete'
@@ -397,6 +474,28 @@ Deno.serve(async (req) => {
                 );
               }
 
+              if (isSameDay) {
+                return admin.rpc(
+                  'distant_review_create_today',
+                  {
+                    p_batch_id:
+                      batch.id,
+                    p_review_date:
+                      body.review_date,
+                    p_start_quarter:
+                      start,
+                    p_end_quarter:
+                      end,
+                    p_note:
+                      note || null,
+                    p_cancelled_program_day:
+                      cancelledDay,
+                    p_actor:
+                      caller.id,
+                  }
+                );
+              }
+
               return admin.rpc(
                 'distant_review_save',
                 {
@@ -450,6 +549,23 @@ Deno.serve(async (req) => {
             ? 404
             : 400
         );
+      }
+
+      if (isSameDay) {
+        const voided =
+          (data.voided_tasmia || 0) +
+          (data.voided_reviews || 0);
+
+        return json({
+          success: true,
+          assignment: data.assignment,
+          voided_tasmia: data.voided_tasmia,
+          voided_reviews: data.voided_reviews,
+          message:
+            voided > 0
+              ? `تم تحويل اليوم إلى يوم مراجعة بعيدة، وأُلغي احتساب ${voided} من تسجيلات اليوم ضمن الورد اليومي`
+              : 'تم تحويل اليوم إلى يوم مراجعة بعيدة',
+        });
       }
 
       return json({

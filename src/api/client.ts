@@ -18,6 +18,7 @@ import {
   DistantReviewAssignment,
   DistantReviewCompletion,
   DistantReviewInput,
+  VoidedDailyRecord,
 } from '../types';
 
 import { supabase } from '../lib/supabase';
@@ -178,6 +179,19 @@ type DistantReviewRow = {
   created_by_name_snapshot: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type VoidedRecordRow = {
+  id: string;
+  kind: 'tasmia' | 'review';
+  user_id: string;
+  program_day: number;
+  program_date: string;
+  start_quarter: number | null;
+  end_quarter: number | null;
+  listener_name_snapshot: string | null;
+  notes: string | null;
+  voided_at: string;
 };
 
 type DistantCompletionRow = {
@@ -769,6 +783,53 @@ function mapDistantReviews(
 }
 
 
+/*
+ * Normal submissions of a program day cancelled the same day by a
+ * «المراجعة البعيدة» day. Only shown in the member's history, so a
+ * failure here never fails the dashboard.
+ */
+async function getVoidedRecords(
+  cycleId: string
+): Promise<VoidedDailyRecord[]> {
+  try {
+    const rows = await fetchAllRows<VoidedRecordRow>((from, to) =>
+      supabase
+        .from('voided_daily_records')
+        .select(
+          'id, kind, user_id, program_day, program_date, start_quarter, end_quarter, listener_name_snapshot, notes, voided_at'
+        )
+        .eq('cycle_id', cycleId)
+        .order('voided_at', {
+          ascending: false,
+        })
+        .order('id', {
+          ascending: true,
+        })
+        .range(from, to)
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      kind: row.kind,
+      member_id: row.user_id,
+      program_day: row.program_day,
+      date: row.program_date,
+      review_start_quarter:
+        row.start_quarter ?? undefined,
+      review_end_quarter:
+        row.end_quarter ?? undefined,
+      listener_name:
+        row.listener_name_snapshot || undefined,
+      notes: row.notes || undefined,
+      voided_at: row.voided_at,
+    }));
+  } catch (error) {
+    console.warn('voided records', error);
+    return [];
+  }
+}
+
+
 function mapDistantCompletions(
   rows: DistantCompletionRow[],
   names: Map<string, string>
@@ -1059,6 +1120,7 @@ async function buildBootstrap(
     revisionRows,
     peerTests,
     distantRows,
+    voidedRecords,
   ] = await Promise.all([
     getRestDayRows(cycle.id),
     getPauseRows(cycle.id),
@@ -1067,6 +1129,7 @@ async function buildBootstrap(
     getRevisionRows(cycle.id),
     getPeerTestsForCycle(cycle.id),
     getDistantReviewRows(batchId),
+    getVoidedRecords(cycle.id),
   ]);
 
   const [peerTestAttempts, distantCompletionRows] =
@@ -1170,6 +1233,7 @@ async function buildBootstrap(
         distantCompletionRows,
         names
       ),
+    voidedRecords,
   };
 }
 

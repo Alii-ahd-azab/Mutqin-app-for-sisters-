@@ -38,6 +38,7 @@ import {
   DistantReviewAssignment,
   DistantReviewCompletion,
   DistantReviewInput,
+  VoidedDailyRecord,
 } from './types';
 import { BookOpen, RefreshCw, Layers } from 'lucide-react';
 
@@ -82,6 +83,7 @@ const MainApp: React.FC = () => {
   const [peerTestAttempts, setPeerTestAttempts] = useState<PeerTestAttempt[]>([]);
   const [distantReviews, setDistantReviews] = useState<DistantReviewAssignment[]>([]);
   const [distantCompletions, setDistantCompletions] = useState<DistantReviewCompletion[]>([]);
+  const [voidedRecords, setVoidedRecords] = useState<VoidedDailyRecord[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   // Bumped after each successful load (other batches' alerts refresh with it).
@@ -143,6 +145,7 @@ const MainApp: React.FC = () => {
     setPeerTestAttempts([]);
     setDistantReviews([]);
     setDistantCompletions([]);
+    setVoidedRecords([]);
     setMemberNotifications([]);
   }, []);
 
@@ -205,6 +208,7 @@ const MainApp: React.FC = () => {
       setPeerTestAttempts(bootstrapRes.peerTestAttempts);
       setDistantReviews(bootstrapRes.distantReviews);
       setDistantCompletions(bootstrapRes.distantCompletions);
+      setVoidedRecords(bootstrapRes.voidedRecords);
       setDataVersion((v) => v + 1);
     } catch (err: any) {
       if (requestId !== loadRequestRef.current) return;
@@ -644,6 +648,7 @@ const MainApp: React.FC = () => {
               cycleId={cycleId}
               distantReviews={distantReviews}
               distantCompletions={distantCompletions}
+              voidedRecords={voidedRecords}
               onCompleteDistantReview={handleCompleteDistantReview}
               onRecordRecitation={handleRecordRecitation}
               onCorrectListener={handleCorrectListener}
